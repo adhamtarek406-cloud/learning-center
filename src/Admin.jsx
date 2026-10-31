@@ -14,6 +14,7 @@ import { MyGroups, QuickAttendance, Grading, GradeCard, Announcements, Inbox, Ab
 import AssignmentEditor from './AssignmentEditor.jsx'
 import { isYoutube } from './meet.js'
 import Requests from './Requests.jsx'
+import ActivitiesAdmin from './Activities.jsx'
 import TeacherPage from './TeacherPage.jsx'
 import Solve from './Solve.jsx'
 
@@ -786,12 +787,12 @@ const TABS = {
   manager: [
     ['overview', 'نظرة عامة'], ['people', 'الحسابات'], ['import', 'استيراد طلبة'], ['content', 'المحتوى'],
     ['mygroups', 'المجموعات والطلاب'], ['sessions', 'الحصص'], ['attendance', 'الحضور'], ['grading', 'التصحيح'],
-    ['assign', 'الواجبات'], ['announce', 'الإعلانات'], ['messages', 'الرسايل'], ['absences', 'الغياب'],
+    ['assign', 'الواجبات'], ['activities', 'أنشطة H5P'], ['announce', 'الإعلانات'], ['messages', 'الرسايل'], ['absences', 'الغياب'],
     ['requests', 'طلبات الاشتراك'], ['subs', 'الاشتراكات'], ['mypage', 'صفحات المدرسين'], ['games', 'الألعاب'], ['log', 'السجل'],
   ],
   teacher: [
     ['mygroups', 'مجموعاتي'], ['sessions', 'الحصص'], ['attendance', 'الحضور'], ['grading', 'التصحيح'],
-    ['assign', 'الواجبات'], ['announce', 'الإعلانات'], ['messages', 'الرسايل'], ['absences', 'الغياب'], ['mypage', 'صفحتي'],
+    ['assign', 'الواجبات'], ['activities', 'أنشطة H5P'], ['announce', 'الإعلانات'], ['messages', 'الرسايل'], ['absences', 'الغياب'], ['mypage', 'صفحتي'],
   ],
   assistant: [
     ['overview', 'نظرة عامة'], ['attendance', 'الحضور'], ['grading', 'التصحيح'], ['absences', 'الغياب'],
@@ -851,6 +852,7 @@ export default function Admin({ session, role }) {
             {tab === 'messages' && <Inbox uid={uid} />}
             {tab === 'absences' && <Absences />}
             {tab === 'requests' && <Requests role={role} />}
+            {tab === 'activities' && <ActivitiesAdmin uid={uid} role={role} />}
             {tab === 'mypage' && <TeacherPage uid={uid} role={role} />}
             {tab === 'assign' && <Assignments uid={uid} role={role} />}
             {tab === 'subs' && <Subscriptions role={role} />}

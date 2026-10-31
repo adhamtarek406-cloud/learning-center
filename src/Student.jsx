@@ -6,6 +6,7 @@ import Game from './Game.jsx'
 import Review from './Review.jsx'
 import Teachers from './Teachers.jsx'
 import { openSession, platformOf } from './meet.js'
+import { StudentActivities, ActivityView } from './Activities.jsx'
 import { motion } from 'framer-motion'
 import { container, item, rowItem, CountUp, GoIcon, Progress, Tabs } from './ui.jsx'
 
@@ -40,6 +41,7 @@ const NAV = [
   ['news', 'الإعلانات والتنبيهات', 'M6 8a6 6 0 1 1 12 0c0 7 3 9 3 9H3s3-2 3-9M10.3 21a1.94 1.94 0 0 0 3.4 0'],
   ['schedule', 'جدول الحصص', 'M3 8a3 3 0 0 1 3-3h12a3 3 0 0 1 3 3v10a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3zM8 3v4M16 3v4M3 10h18'],
   ['assign', 'الواجبات والكويزات', 'M6 3h9l4 4v14H6zM9 12h7M9 16h7'],
+  ['activities', 'أنشطة تفاعلية', 'M12 2l9 5v10l-9 5-9-5V7zM12 22V12M21 7l-9 5-9-5'],
   ['games', 'التحديات والألعاب', 'M8 4h8v5a4 4 0 0 1-8 0zM12 13v4M8 21h8M8 6H4v1a3 3 0 0 0 4 3M16 6h4v1a3 3 0 0 1-4 3'],
   ['board', 'لوحة الصدارة', 'M5 20V10M12 20V4M19 20v-7'],
   ['sub', 'اشتراكي', 'M3 9a3 3 0 0 1 3-3h12a3 3 0 0 1 3 3v7a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3zM3 10h18M7 15h3'],
@@ -141,6 +143,7 @@ export default function Student({ session }) {
   const { profile, session: next, assignments, sub, game, board, points, playedToday, results, subs, upcoming, past, overall, scoreRows, allResults, games: gameList, boards, playedMap, badges, anns, streak, allAssignments, links } = d
   const back = () => { setView(null); setTick((t) => t + 1) }
   if (view?.type === 'assignment') return <Solve assignment={view.a} onBack={back} />
+  if (view?.type === 'activity') return <ActivityView activity={view.a} onBack={() => setView(null)} />
   if (view?.type === 'review') return <Review assignmentId={view.id} onBack={() => setView(null)} />
   if (view?.type === 'game') { const g = view.game ?? game; return <Game game={g} playedToday={playedMap[g.id] ?? 0} onBack={back} /> }
   const level = next?.groups?.levels
@@ -342,7 +345,7 @@ export default function Student({ session }) {
         </>)}
 
         {sec !== 'home' && (
-          <Pages key={sec} sec={sec} {...{ links, myFirst, upcoming, past, assignments, allResults, gameList, boards, playedMap, badges, overall, scoreRows, points, subs, news, seenBefore, streak, profile }} uid={uid} email={session.user.email} onSaved={() => setTick((t) => t + 1)} onReview={(id) => setView({ type: 'review', id })} onAssign={(a) => setView({ type: 'assignment', a })} onPlay={(g) => setView({ type: 'game', game: g })} />
+          <Pages key={sec} sec={sec} {...{ links, myFirst, upcoming, past, assignments, allResults, gameList, boards, playedMap, badges, overall, scoreRows, points, subs, news, seenBefore, streak, profile }} uid={uid} email={session.user.email} onSaved={() => setTick((t) => t + 1)} onReview={(id) => setView({ type: 'review', id })} onActivity={(a) => setView({ type: 'activity', a })} onAssign={(a) => setView({ type: 'assignment', a })} onPlay={(g) => setView({ type: 'game', game: g })} />
         )}
       </main>
     </div>
@@ -369,7 +372,7 @@ function BoardList({ rows, myFirst }) {
 
 const STATUS_AR = { active: 'ساري', paused: 'موقوف', expired: 'منتهي', cancelled: 'ملغي' }
 
-function Pages({ links, sec, myFirst, upcoming, past, assignments, allResults, gameList, boards, playedMap, badges, overall, scoreRows, points, subs, news, seenBefore, streak, profile, uid, email, onSaved, onReview, onAssign, onPlay }) {
+function Pages({ links, sec, myFirst, upcoming, past, assignments, allResults, gameList, boards, playedMap, badges, overall, scoreRows, points, subs, news, seenBefore, streak, profile, uid, email, onSaved, onReview, onActivity, onAssign, onPlay }) {
   const [bt, setBt] = useState(gameList[0]?.id ?? 'all')
   const lv = (x) => `${x.groups?.levels?.subjects?.name ?? ''} • ${x.groups?.levels?.name ?? ''}`
   const wrap = (children) => (
@@ -507,6 +510,8 @@ function Pages({ links, sec, myFirst, upcoming, past, assignments, allResults, g
         )) : <p className="muted">مفيش جديد لسه.</p>}
       </motion.section>
     )
+
+  if (sec === 'activities') return <div className="pane"><StudentActivities onOpen={onActivity} /></div>
 
   if (sec === 'me') return wrap(<Me profile={profile} email={email} onSaved={onSaved} />)
 

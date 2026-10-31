@@ -301,3 +301,15 @@ tr.off td { opacity: .6; }
 .join-box { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; max-width: 320px; }
 .hero-tip { font-size: 13px; opacity: .92; }
 .pill.joined { font-size: 11px; padding: 2px 8px; margin-inline-start: 8px; }
+
+/* ===== أنشطة H5P ===== */
+.h5p-wrap { width: 100%; min-height: 200px; }
+.h5p-wrap iframe { width: 100%; border: 0; display: block; }
+.solve.wide { max-width: 1000px; }
+.act-card { align-items: center; }
+.howto { background: #FBFAFF; border-radius: 16px; padding: 10px 14px; box-shadow: inset 0 0 0 1.5px rgba(91,67,214,.12); }
+.howto summary { cursor: pointer; font-weight: 700; color: var(--brand); }
+.howto ol { margin: 8px 0 0; padding-inline-start: 22px; display: flex; flex-direction: column; gap: 4px; font-size: 14px; }
+.upbar { position: relative; height: 26px; border-radius: 999px; background: #EDE8FF; overflow: hidden; }
+.upbar div { position: absolute; inset: 0; background: linear-gradient(90deg, var(--brand2), var(--brand)); transform-origin: right; transition: transform .3s var(--ease); }
+.upbar span { position: relative; display: grid; place-items: center; height: 100%; font-size: 12px; font-weight: 800; color: #fff; mix-blend-mode: difference; }
