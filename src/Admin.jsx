@@ -420,7 +420,7 @@ function Subscriptions({ role }) {
     return { subs, students, plans, groups, center: centers[0] }
   })
   const [msg, setMsg] = useState('')
-  const [f, setF] = useState({ student_id: '', plan_id: '', group_id: '', amount: '' })
+  const [f, setF] = useState({ student_id: '', plan_id: '', group_id: '', amount: '', free: false })
   const [pl, setPl] = useState({ name: '', kind: 'monthly', price: '', duration_days: '30' })
   if (!d) return <Notice err={err} />
   async function act(fn, reset) { setMsg(''); try { await fn(); reset?.(); await load() } catch (e) { setMsg(e.message) } }
@@ -430,11 +430,13 @@ function Subscriptions({ role }) {
     const plan = d.plans.find((p) => p.id === f.plan_id)
     const start = new Date()
     const renew = plan?.duration_days ? new Date(start.getTime() + plan.duration_days * 86400000) : null
+    const amount = f.amount === '' ? Number(plan?.price ?? 0) : Number(f.amount)
+    if (!f.free && !(amount > 0)) { setMsg('اكتب المبلغ اللي اتدفع، أو علّم على "مجاني / من غير دفع".'); return }
     await act(async () => {
       const [sub] = await q(supabase.from('subscriptions').insert({ student_id: f.student_id, plan_id: f.plan_id, group_id: f.group_id || null, status: 'active', renews_on: renew ? renew.toISOString().slice(0, 10) : null }).select('id'))
-      const amount = f.amount === '' ? plan?.price ?? 0 : Number(f.amount)
-      await q(supabase.from('payments').insert({ subscription_id: sub.id, amount, status: 'paid', paid_at: new Date().toISOString(), gateway_ref: 'يدوي' }))
-    }, () => setF({ student_id: '', plan_id: '', group_id: '', amount: '' }))
+      if (!f.free) await q(supabase.from('payments').insert({ subscription_id: sub.id, amount, status: 'paid', paid_at: new Date().toISOString(), gateway_ref: 'يدوي' }))
+      logAct('subscription_activated', 'subscriptions', sub.id, { amount: f.free ? 0 : amount, free: f.free })
+    }, () => setF({ student_id: '', plan_id: '', group_id: '', amount: '', free: false }))
   }
 
   return (
@@ -446,7 +448,8 @@ function Subscriptions({ role }) {
           <label>الطالب<select className="fld" required value={f.student_id} onChange={(e) => setF({ ...f, student_id: e.target.value })}><option value="">اختار...</option>{d.students.map((s) => <option key={s.id} value={s.id}>{s.full_name}</option>)}</select></label>
           <label>الخطة<select className="fld" required value={f.plan_id} onChange={(e) => setF({ ...f, plan_id: e.target.value })}><option value="">اختار...</option>{d.plans.map((p) => <option key={p.id} value={p.id}>{p.name} ({num(p.price)})</option>)}</select></label>
           <label>المجموعة<select className="fld" value={f.group_id} onChange={(e) => setF({ ...f, group_id: e.target.value })}><option value="">غير محدد</option>{d.groups.map((g) => <option key={g.id} value={g.id}>{g.levels?.subjects?.name} {g.levels?.name} • {g.name}</option>)}</select></label>
-          <label>المبلغ المدفوع<input className="fld" type="number" min="0" placeholder="سعر الخطة لو سبته فاضي" value={f.amount} onChange={(e) => setF({ ...f, amount: e.target.value })} /></label>
+          <label>المبلغ المدفوع<input className="fld" type="number" min="1" step="any" disabled={f.free} placeholder="سعر الخطة لو سبته فاضي" value={f.free ? '' : f.amount} onChange={(e) => setF({ ...f, amount: e.target.value })} /></label>
+          <label className="check"><input type="checkbox" checked={f.free} onChange={(e) => setF({ ...f, free: e.target.checked })} /> مجاني / من غير دفع</label>
           <button className="btn-primary">تفعيل وتسجيل الدفعة</button>
         </form>
       </section>

@@ -26,7 +26,30 @@ export function Notice({ err }) {
   return err ? <p className="msg" role="alert">حصلت مشكلة: {err}</p> : null
 }
 
-export const logAct = (action, table, target, details) => supabase.rpc('log_action', { p_action: action, p_table: table, p_target: target ?? null, p_details: details ?? null })
+// ملحوظة: طلبات supabase مابتتبعتش غير لما نستناها (then/await)، فلازم then هنا عشان التسجيل يتبعت فعلًا
+export const logAct = (action, table, target, details) =>
+  supabase.rpc('log_action', { p_action: action, p_table: table, p_target: target ?? null, p_details: details ?? null }).then(() => {}, () => {})
+
+/** رسالة صغيرة بتظهر تحت الشاشة وتختفي لوحدها */
+export function toast(text, kind = 'error') {
+  const el = document.createElement('div')
+  el.className = `toast ${kind}`; el.setAttribute('role', kind === 'error' ? 'alert' : 'status'); el.textContent = text
+  document.body.appendChild(el)
+  requestAnimationFrame(() => el.classList.add('show'))
+  setTimeout(() => { el.classList.remove('show'); setTimeout(() => el.remove(), 400) }, 4500)
+}
+
+/** بينفذ عملية حفظ ويطلّع رسالة واضحة لو فشلت. بيرجع true لو نجحت */
+export async function must(builder, what = 'الحفظ') {
+  try {
+    const { error } = await builder
+    if (error) throw error
+    return true
+  } catch (e) {
+    toast(`${what} مانجحش: ${e.message ?? 'جرّب تاني'}`)
+    return false
+  }
+}
 
 export function Modal({ title, onClose, children }) {
   useEffect(() => {

@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { supabase } from './supabase.js'
 import { container, item } from './ui.jsx'
-import { fmtDT, num, q, useLoad, Notice, Modal, logAct } from './adminkit.jsx'
+import { fmtDT, num, q, useLoad, Notice, Modal, logAct, must } from './adminkit.jsx'
 import { readActivity, uploadActivity, removeFiles, buildSrcdoc, AI_PROMPT } from './htmlact.js'
 
 /* ================= المشغّل ================= */
@@ -270,7 +270,7 @@ export default function ActivitiesAdmin({ uid, role }) {
                       <div className="inline">
                         <button className="btn-outline" onClick={() => results(a)}>النتايج</button>
                         <button className="btn-link" onClick={() => setPv(a)}>معاينة</button>
-                        <button className="btn-link" onClick={async () => { await supabase.from('activities').update({ active: !a.active }).eq('id', a.id); load() }}>{a.active ? 'إخفاء' : 'إظهار'}</button>
+                        <button className="btn-link" onClick={async () => { if (await must(supabase.from('activities').update({ active: !a.active }).eq('id', a.id), 'تغيير الظهور')) load() }}>{a.active ? 'إخفاء' : 'إظهار'}</button>
                         <button className="btn-danger" onClick={() => remove(a)}>حذف</button>
                       </div>
                     </td>

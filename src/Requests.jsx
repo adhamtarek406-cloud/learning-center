@@ -29,7 +29,9 @@ export default function Requests({ role }) {
 
   async function decide(e) {
     e.preventDefault(); setMsg('')
-    const { error } = await supabase.rpc('decide_request', { p_id: dec.r.id, p_approve: dec.approve, p_amount: dec.approve && dec.amount !== '' ? Number(dec.amount) : null, p_admin_note: dec.note })
+    const amount = dec.free ? 0 : Number(dec.amount)
+    if (dec.approve && !dec.free && !(amount > 0)) { setMsg('اكتب المبلغ اللي اتدفع، أو علّم على "مجاني / من غير دفع".'); return }
+    const { error } = await supabase.rpc('decide_request', { p_id: dec.r.id, p_approve: dec.approve, p_amount: dec.approve ? amount : null, p_admin_note: dec.note })
     if (error) setMsg(error.message); else { setDec(null); load() }
   }
 
@@ -65,7 +67,7 @@ export default function Requests({ role }) {
             {r.admin_note && <div className="muted small">ملاحظة الإدارة: {r.admin_note}</div>}
             {r.status === 'pending' && role === 'manager' && (
               <div className="inline">
-                <button className="btn-primary" onClick={() => setDec({ r, approve: true, amount: price ?? '', note: '' })}>موافقة وتسجيل الدفع</button>
+                <button className="btn-primary" onClick={() => setDec({ r, approve: true, amount: price ?? '', note: '', free: false })}>موافقة وتسجيل الدفع</button>
                 <button className="btn-danger" onClick={() => setDec({ r, approve: false, amount: '', note: '' })}>رفض</button>
                 {phone && <a className="btn-link" href={waLink(phone, `أهلاً، بخصوص طلب اشتراك ${r.profiles?.full_name} في ${g?.levels?.subjects?.name} ${g?.levels?.name} (${g?.name})${price ? `، المطلوب ${num(price)} ج.م` : ''}.`)} target="_blank" rel="noreferrer">واتساب</a>}
               </div>
@@ -83,8 +85,9 @@ export default function Requests({ role }) {
               <p className="strong">{dec.r.profiles?.full_name} • {dec.r.groups?.name}</p>
               {dec.approve && (
                 <>
-                  <label>المبلغ اللي اتدفع (ج.م)<input className="fld" type="number" min="0" value={dec.amount} onChange={(e) => setDec({ ...dec, amount: e.target.value })} /></label>
-                  <p className="muted small">الطالب هيتضاف للمجموعة{dec.r.plans ? `، واشتراك "${dec.r.plans.name}" هيبدأ النهاردة` : ''}، والدفعة هتتسجل. لو لسه مادفعش سيب المبلغ فاضي.</p>
+                  <label>المبلغ اللي اتدفع (ج.م)<input className="fld" type="number" min="1" step="any" required={!dec.free} disabled={dec.free} value={dec.free ? '' : dec.amount} onChange={(e) => setDec({ ...dec, amount: e.target.value })} /></label>
+                  <label className="check"><input type="checkbox" checked={!!dec.free} onChange={(e) => setDec({ ...dec, free: e.target.checked })} /> مجاني / من غير دفع (منحة أو تجربة)</label>
+                  <p className="muted small">الطالب هيتضاف للمجموعة{dec.r.plans ? `، واشتراك "${dec.r.plans.name}" هيبدأ النهاردة` : ''}{dec.free ? '، ومفيش دفعة هتتسجل.' : '، والدفعة هتتسجل في الإيراد.'}</p>
                 </>
               )}
               <label>ملاحظة تظهر للطالب (اختياري)<input className="fld" value={dec.note} placeholder={dec.approve ? 'مثال: أهلاً بيك في المجموعة' : 'مثال: المجموعة كاملة، جرّب مجموعة الأحد'} onChange={(e) => setDec({ ...dec, note: e.target.value })} /></label>

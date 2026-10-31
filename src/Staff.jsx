@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { supabase } from './supabase.js'
 import { Tabs, container, item, Empty } from './ui.jsx'
-import { fmtDT, fmtD, num, q, useLoad, Notice, Modal, logAct } from './adminkit.jsx'
+import { fmtDT, fmtD, num, q, useLoad, Notice, Modal, logAct, must } from './adminkit.jsx'
 import { TYPES, typeOf, pointsOf, isCorrect, answerText, keyText } from './questions.js'
 import { platformOf, newJitsiRoom } from './meet.js'
 
@@ -117,7 +117,7 @@ export function StudentFile({ uid, student, onClose }) {
             {d.notes.map((n) => (
               <div className="row" key={n.id}>
                 <div className="grow"><div style={{ whiteSpace: 'pre-wrap' }}>{n.body}</div><div className="muted small">{n.author_name ?? '—'} • {fmtDT(n.created_at)}</div></div>
-                {n.author_id === uid && <button className="btn-link" onClick={async () => { await supabase.from('student_notes').delete().eq('id', n.id); load() }}>حذف</button>}
+                {n.author_id === uid && <button className="btn-link" onClick={async () => { if (await must(supabase.from('student_notes').delete().eq('id', n.id), 'حذف الملاحظة')) load() }}>حذف</button>}
               </div>
             ))}
             {d.notes.length === 0 && <p className="muted small">مفيش ملاحظات لسه.</p>}
@@ -391,7 +391,7 @@ export function Announcements({ uid, role }) {
               {a.body && <div style={{ whiteSpace: 'pre-wrap' }}>{a.body}</div>}
               <div className="muted small">{a.group_id ? gLabel(d.groups.find((g) => g.id === a.group_id)) : 'كل السنتر'} • {a.author_name ?? '—'} • {fmtDT(a.created_at)}</div>
             </div>
-            {(role === 'manager' || a.author_id === uid) && <button className="btn-danger" onClick={() => window.confirm('حذف الإعلان؟') && supabase.from('announcements').delete().eq('id', a.id).then(load)}>حذف</button>}
+            {(role === 'manager' || a.author_id === uid) && <button className="btn-danger" onClick={async () => { if (window.confirm('حذف الإعلان؟') && await must(supabase.from('announcements').delete().eq('id', a.id), 'حذف الإعلان')) load() }}>حذف</button>}
           </div>
         ))}
         {d.list.length === 0 && <p className="muted">مفيش إعلانات لسه.</p>}

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { supabase } from './supabase.js'
-import { fmtD, num, q, useLoad, Notice } from './adminkit.jsx'
+import { fmtD, num, q, useLoad, Notice, must } from './adminkit.jsx'
 import { Avatar, Stars, embedUrl } from './Teachers.jsx'
 
 /** المدرس يعدّل صفحته التعريفية — والمدير يختار أي مدرس */
@@ -108,7 +108,7 @@ function Editor({ tid, role }) {
               {r.comment && <div className="small" style={{ whiteSpace: 'pre-wrap' }}>{r.comment}</div>}
             </div>
             <span className="muted small">{fmtD(r.created_at)}</span>
-            {role === 'manager' && <button className="btn-link" onClick={() => window.confirm('حذف التقييم ده؟') && supabase.from('teacher_reviews').delete().eq('id', r.id).then(load)}>حذف</button>}
+            {role === 'manager' && <button className="btn-link" onClick={async () => { if (window.confirm('حذف التقييم ده؟') && await must(supabase.from('teacher_reviews').delete().eq('id', r.id), 'حذف التقييم')) load() }}>حذف</button>}
           </div>
         ))}
         {d.reviews.length === 0 && <p className="muted">لسه مفيش تقييمات. الطلبة المشتركين معاك يقدروا يقيّموك من صفحتك.</p>}
