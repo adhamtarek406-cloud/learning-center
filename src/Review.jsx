@@ -50,8 +50,8 @@ export default function Review({ assignmentId, onBack }) {
                       return (
                         <div key={k} className={`opt${cls}`}>
                           {o}
-                          {picked && <span className="muted small"> · إجابتك</span>}
-                          {isKey && !picked && <span className="muted small"> · الإجابة الصح</span>}
+                          {picked && <span className="muted small"> • إجابتك</span>}
+                          {isKey && !picked && <span className="muted small"> • الإجابة الصح</span>}
                         </div>
                       )
                     })}

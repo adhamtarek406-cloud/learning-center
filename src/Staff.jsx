@@ -5,7 +5,7 @@ import { Tabs, container, item } from './ui.jsx'
 import { fmtDT, fmtD, num, q, useLoad, Notice, Modal, logAct } from './adminkit.jsx'
 import { TYPES, typeOf, pointsOf, isCorrect, answerText, keyText } from './questions.js'
 
-const gLabel = (g) => (g ? `${g.levels?.subjects?.name ?? ''} ${g.levels?.name ?? ''} · ${g.name}` : '—')
+const gLabel = (g) => (g ? `${g.levels?.subjects?.name ?? ''} ${g.levels?.name ?? ''} • ${g.name}` : '—')
 const GSEL = 'id, name, schedule, teacher_id, active, levels(name, subjects(name))'
 
 export function waLink(phone, text) {
@@ -48,8 +48,8 @@ export function MyGroups({ uid, role }) {
                 <h2>{g.name}</h2>
                 <span className={`pill ${g.active ? 'green' : 'red'}`}>{num(d.enr.filter((e) => e.group_id === g.id).length)} طالب</span>
               </div>
-              <div className="muted small">{g.levels?.subjects?.name} · {g.levels?.name}{g.schedule ? ` · ${g.schedule}` : ''}</div>
-              <div className="muted small">{nx ? `الحصة الجاية: ${fmtDT(nx.starts_at)}${nx.topic ? ` · ${nx.topic}` : ''}` : 'مفيش حصة قادمة متسجلة'}</div>
+              <div className="muted small">{g.levels?.subjects?.name} • {g.levels?.name}{g.schedule ? ` • ${g.schedule}` : ''}</div>
+              <div className="muted small">{nx ? `الحصة الجاية: ${fmtDT(nx.starts_at)}${nx.topic ? ` • ${nx.topic}` : ''}` : 'مفيش حصة قادمة متسجلة'}</div>
               <div className="chips">
                 {studs.map((e) => (
                   <button key={e.student_id} className={`chip-btn${e.profiles?.active === false ? ' off' : ''}`} onClick={() => setOpen({ id: e.student_id, name: e.profiles?.full_name, phone: e.profiles?.phone })}>{e.profiles?.full_name}</button>
@@ -113,7 +113,7 @@ export function StudentFile({ uid, student, onClose }) {
             <Notice err={msg} />
             {d.notes.map((n) => (
               <div className="row" key={n.id}>
-                <div className="grow"><div style={{ whiteSpace: 'pre-wrap' }}>{n.body}</div><div className="muted small">{n.author_name ?? '—'} · {fmtDT(n.created_at)}</div></div>
+                <div className="grow"><div style={{ whiteSpace: 'pre-wrap' }}>{n.body}</div><div className="muted small">{n.author_name ?? '—'} • {fmtDT(n.created_at)}</div></div>
                 {n.author_id === uid && <button className="btn-link" onClick={async () => { await supabase.from('student_notes').delete().eq('id', n.id); load() }}>حذف</button>}
               </div>
             ))}
@@ -122,11 +122,11 @@ export function StudentFile({ uid, student, onClose }) {
           </>
         )}
         {tab === 'att' && (atts.length ? atts.map((a, i) => (
-          <div className="row" key={i}><div className="grow">{a.sessions ? fmtDT(a.sessions.starts_at) : '—'}{a.sessions?.topic ? ` · ${a.sessions.topic}` : ''}</div><span className={`pill ${a.present ? 'green' : 'red'}`}>{a.present ? 'حاضر' : 'غايب'}</span></div>
+          <div className="row" key={i}><div className="grow">{a.sessions ? fmtDT(a.sessions.starts_at) : '—'}{a.sessions?.topic ? ` • ${a.sessions.topic}` : ''}</div><span className={`pill ${a.present ? 'green' : 'red'}`}>{a.present ? 'حاضر' : 'غايب'}</span></div>
         )) : <p className="muted">لسه مفيش حضور متسجل.</p>)}
         {tab === 'grades' && (d.subs.length ? d.subs.map((s, i) => (
           <div className="row" key={i}>
-            <div className="grow"><div className="strong">{s.assignments?.title}</div><div className="muted small">{fmtD(s.submitted_at)}{s.feedback ? ` · ${s.feedback}` : ''}</div></div>
+            <div className="grow"><div className="strong">{s.assignments?.title}</div><div className="muted small">{fmtD(s.submitted_at)}{s.feedback ? ` • ${s.feedback}` : ''}</div></div>
             <span className={`pill ${s.final_score != null ? 'green' : ''}`}>{s.final_score != null ? `${num(s.final_score)}٪` : s.auto_score != null ? `${num(s.auto_score)}٪ مبدئي` : 'محتاج تصحيح'}</span>
           </div>
         )) : <p className="muted">لسه ماسلمش حاجة.</p>)}
@@ -196,7 +196,7 @@ export function QuickAttendance({ uid, role }) {
       <label className="form-one">الحصة
         <select className="fld" value={sid} onChange={(e) => pick(e.target.value)}>
           <option value="">اختار...</option>
-          {d.sessions.map((s) => <option key={s.id} value={s.id}>{fmtDT(s.starts_at)} · {gname(s.group_id)}</option>)}
+          {d.sessions.map((s) => <option key={s.id} value={s.id}>{fmtDT(s.starts_at)} • {gname(s.group_id)}</option>)}
         </select>
       </label>
       {d.sessions.length === 0 && <p className="muted">مفيش حصص في آخر ٣٠ يوم أو اليومين الجايين.</p>}
@@ -271,8 +271,8 @@ export function GradeCard({ s, keys, uid, onDone }) {
   return (
     <div className="qbox">
       <div className="card-head">
-        <div><span className="strong">{s.profiles?.full_name}</span> · {s.assignments?.title}</div>
-        <span className="muted small">اتسلّم {fmtDT(s.submitted_at)} · التلقائي: {s.auto_score == null ? '—' : `${num(s.auto_score)}٪`}</span>
+        <div><span className="strong">{s.profiles?.full_name}</span> • {s.assignments?.title}</div>
+        <span className="muted small">اتسلّم {fmtDT(s.submitted_at)} • التلقائي: {s.auto_score == null ? '—' : `${num(s.auto_score)}٪`}</span>
       </div>
       <ol className="ans">
         {qs.map((x, i) => {
@@ -343,7 +343,7 @@ export function Announcements({ uid, role }) {
             <div className="grow">
               <div className="strong">{a.title}</div>
               {a.body && <div style={{ whiteSpace: 'pre-wrap' }}>{a.body}</div>}
-              <div className="muted small">{a.group_id ? gLabel(d.groups.find((g) => g.id === a.group_id)) : 'كل السنتر'} · {a.author_name ?? '—'} · {fmtDT(a.created_at)}</div>
+              <div className="muted small">{a.group_id ? gLabel(d.groups.find((g) => g.id === a.group_id)) : 'كل السنتر'} • {a.author_name ?? '—'} • {fmtDT(a.created_at)}</div>
             </div>
             {(role === 'manager' || a.author_id === uid) && <button className="btn-danger" onClick={() => window.confirm('حذف الإعلان؟') && supabase.from('announcements').delete().eq('id', a.id).then(load)}>حذف</button>}
           </div>
@@ -382,7 +382,7 @@ export function Inbox({ uid }) {
   if (!d) return <Notice err={err} />
   const nm = (id) => d.names[id] ?? '—'
 
-  if (open) return <Thread uid={uid} staff studentId={open.student_id} parentId={open.parent_id} title={`${nm(open.parent_id)} · ولي أمر ${nm(open.student_id)}`} onBack={() => { setOpen(null); load() }} />
+  if (open) return <Thread uid={uid} staff studentId={open.student_id} parentId={open.parent_id} title={`${nm(open.parent_id)} • ولي أمر ${nm(open.student_id)}`} onBack={() => { setOpen(null); load() }} />
 
   return (
     <section className="card">
@@ -399,7 +399,7 @@ export function Inbox({ uid }) {
       {threads.map((t) => (
         <button className="row thread-row" key={`${t.student_id}|${t.parent_id}`} onClick={() => setOpen(t)}>
           <div className="grow">
-            <div className="strong">{nm(t.parent_id)} <span className="muted small">· ولي أمر {nm(t.student_id)}</span></div>
+            <div className="strong">{nm(t.parent_id)} <span className="muted small">• ولي أمر {nm(t.student_id)}</span></div>
             <div className="muted small ellipsis">{t.last.from_parent ? '' : 'إنت: '}{t.last.body}</div>
           </div>
           <span className="muted small">{fmtD(t.last.created_at)}</span>
@@ -438,7 +438,7 @@ export function Thread({ uid, staff, studentId, parentId, title, onBack }) {
           return (
             <div key={m.id} className={`bubble${mine ? ' mine' : ''}`}>
               <div style={{ whiteSpace: 'pre-wrap' }}>{m.body}</div>
-              <div className="small muted">{m.sender_name ?? ''} · {fmtDT(m.created_at)}{mine && m.read ? ' · اتقرت' : ''}</div>
+              <div className="small muted">{m.sender_name ?? ''} • {fmtDT(m.created_at)}{mine && m.read ? ' • اتقرت' : ''}</div>
             </div>
           )
         })}
@@ -468,7 +468,7 @@ export function Absences() {
         <div className="row" key={r.student_id}>
           <div className="grow">
             <div className="strong">{r.student_name} <span className="pill red">غاب {num(r.absences)}</span></div>
-            <div className="muted small">{r.grp} · آخر غياب {fmtD(r.last_absent)}</div>
+            <div className="muted small">{r.grp} • آخر غياب {fmtD(r.last_absent)}</div>
           </div>
           <div className="inline">
             {r.parents.filter((p) => p.phone).map((p, i) => <a key={i} className="btn-outline" href={waLink(p.phone, text(r, p.name))} target="_blank" rel="noreferrer">واتساب {p.name}</a>)}

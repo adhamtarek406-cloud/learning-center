@@ -32,7 +32,7 @@ export default function Overview({ role, onGo }) {
     ...(role === 'manager' ? [['rev', 'إيراد الشهر (ج.م)', d.revenue_month]] : []),
     ['att', 'نسبة الحضور (٣٠ يوم)', d.attendance_30d, d.attendance_30d == null ? '—' : '٪'],
     ['sub7', 'تسليمات آخر ٧ أيام', d.submissions_7d],
-    ['plays', `محاولات ألعاب (٧ أيام) · ${num(d.players_7d)} لاعب`, d.plays_7d],
+    ['plays', `محاولات ألعاب (٧ أيام) • ${num(d.players_7d)} لاعب`, d.plays_7d],
     ['sess', 'حصص الأسبوع الجاي', d.sessions_7d],
   ]
   const todo = [
@@ -88,7 +88,7 @@ const ACT = {
 
 function detail(x) {
   if (!x) return ''
-  return Object.entries(x).filter(([, v]) => v).map(([k, v]) => (k === 'role' ? ROLE_AR[v] ?? v : String(v))).join(' · ')
+  return Object.entries(x).filter(([, v]) => v).map(([k, v]) => (k === 'role' ? ROLE_AR[v] ?? v : String(v))).join(' • ')
 }
 
 export function LogTab() {

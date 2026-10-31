@@ -53,7 +53,7 @@ export default function Accounts({ uid }) {
 
   if (!d) return <Notice err={err} />
 
-  const gname = (g) => `${g.levels?.subjects?.name ?? ''} ${g.levels?.name ?? ''} · ${g.name}`
+  const gname = (g) => `${g.levels?.subjects?.name ?? ''} ${g.levels?.name ?? ''} • ${g.name}`
   const students = d.profiles.filter((p) => p.role === 'student')
   const parents = d.profiles.filter((p) => p.role === 'parent')
   const staff = d.profiles.filter((p) => ['manager', 'teacher', 'assistant'].includes(p.role))
@@ -136,7 +136,7 @@ export default function Accounts({ uid }) {
             )
           })}
           <select className="fld mini" value="" aria-label="إضافة لمجموعة" onChange={(e) => e.target.value && act(() => q(supabase.from('enrollments').insert({ student_id: p.id, group_id: e.target.value })))}>
-            <option value="">{enrolled(p.id).length ? '+ مجموعة' : 'من غير مجموعة · أضف'}</option>
+            <option value="">{enrolled(p.id).length ? '+ مجموعة' : 'من غير مجموعة • أضف'}</option>
             {d.groups.filter((g) => !enrolled(p.id).some((e) => e.group_id === g.id)).map((g) => <option key={g.id} value={g.id}>{gname(g)}</option>)}
           </select>
         </>
@@ -151,7 +151,7 @@ export default function Accounts({ uid }) {
             </span>
           ))}
           <select className="fld mini" value="" aria-label="ربط بطالب" onChange={(e) => e.target.value && act(() => q(supabase.from('parent_links').insert({ parent_id: p.id, student_id: e.target.value })))}>
-            <option value="">{mineLinks(p.id).length ? '+ ابن/بنت' : 'مفيش · اربط'}</option>
+            <option value="">{mineLinks(p.id).length ? '+ ابن/بنت' : 'مفيش • اربط'}</option>
             {students.filter((x) => !mineLinks(p.id).some((l) => l.student_id === x.id)).map((x) => <option key={x.id} value={x.id}>{x.full_name}</option>)}
           </select>
         </>
@@ -191,7 +191,7 @@ export default function Accounts({ uid }) {
                     <tr key={p.id} className={p.active ? '' : 'off'}>
                       <td>
                         <div className="strong">{p.full_name}</div>
-                        <div dir="ltr" className="muted small" style={{ textAlign: 'start' }}>{p.email}{p.phone ? ` · ${p.phone}` : ''}</div>
+                        <div dir="ltr" className="muted small" style={{ textAlign: 'start' }}>{p.email}{p.phone ? ` • ${p.phone}` : ''}</div>
                       </td>
                       <td><span className={`pill ${p.role === 'manager' ? 'gold' : ''}`}>{ROLE_AR[p.role]}</span></td>
                       <td><span className={`pill ${p.active ? 'green' : 'red'}`}>{p.active ? 'نشط' : 'موقوف'}</span></td>
@@ -221,7 +221,7 @@ export default function Accounts({ uid }) {
                   <tr key={i.id}>
                     <td>
                       <div className="strong">{i.full_name}</div>
-                      <div dir="ltr" className="muted small" style={{ textAlign: 'start' }}>{i.email}{i.phone ? ` · ${i.phone}` : ''}</div>
+                      <div dir="ltr" className="muted small" style={{ textAlign: 'start' }}>{i.email}{i.phone ? ` • ${i.phone}` : ''}</div>
                     </td>
                     <td><span className="pill">{ROLE_AR[i.role]}</span></td>
                     <td className="muted">{fmtD(i.created_at)}</td>

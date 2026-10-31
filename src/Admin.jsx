@@ -12,6 +12,8 @@ import GamesAdmin from './GamesAdmin.jsx'
 import Overview, { LogTab } from './Overview.jsx'
 import { MyGroups, QuickAttendance, Grading, GradeCard, Announcements, Inbox, Absences } from './Staff.jsx'
 import AssignmentEditor from './AssignmentEditor.jsx'
+import Requests from './Requests.jsx'
+import TeacherPage from './TeacherPage.jsx'
 import Solve from './Solve.jsx'
 
 const toLocalInput = (iso) => { const x = new Date(iso); x.setMinutes(x.getMinutes() - x.getTimezoneOffset()); return x.toISOString().slice(0, 16) }
@@ -32,7 +34,7 @@ function People({ role }) {
   const [only, setOnly] = useState('all')
   if (!d) return <Notice err={err} />
 
-  const gname = (g) => `${g.levels?.subjects?.name ?? ''} ${g.levels?.name ?? ''} · ${g.name}`
+  const gname = (g) => `${g.levels?.subjects?.name ?? ''} ${g.levels?.name ?? ''} • ${g.name}`
   const enrolled = (sid) => d.enr.filter((e) => e.student_id === sid)
   const students = d.profiles.filter((p) => p.role === 'student' || p.role === 'parent')
   const team = d.profiles.filter((p) => ['manager', 'teacher', 'assistant'].includes(p.role))
@@ -191,7 +193,7 @@ function Groups({ role }) {
               {d.groups.map((x) => (
                 <tr key={x.id}>
                   <td className="strong">{x.name}</td>
-                  <td>{x.levels?.subjects?.name} · {x.levels?.name} <span className="muted small">({x.levels?.stages?.name})</span></td>
+                  <td>{x.levels?.subjects?.name} • {x.levels?.name} <span className="muted small">({x.levels?.stages?.name})</span></td>
                   <td>
                     {isM ? (
                       <select className="fld" value={x.teacher_id ?? ''} onChange={(e) => act(() => q(supabase.from('groups').update({ teacher_id: e.target.value || null }).eq('id', x.id)))}>
@@ -215,7 +217,7 @@ function Groups({ role }) {
         <section className="card">
           <h2>إضافة مجموعة</h2>
           <form className="form" onSubmit={(e) => { e.preventDefault(); act(() => q(supabase.from('groups').insert({ level_id: g.level_id, name: g.name, schedule: g.schedule || null, monthly_price: g.monthly_price === '' ? null : Number(g.monthly_price), capacity: g.capacity === '' ? null : Number(g.capacity), teacher_id: g.teacher_id || null })), () => setG({ level_id: '', name: '', schedule: '', monthly_price: '', capacity: '', teacher_id: '' })) }}>
-            <label>المستوى<select className="fld" required value={g.level_id} onChange={(e) => setG({ ...g, level_id: e.target.value })}><option value="">اختار...</option>{d.levels.map((l) => <option key={l.id} value={l.id}>{l.subjects?.name} · {l.name} ({l.stages?.name})</option>)}</select></label>
+            <label>المستوى<select className="fld" required value={g.level_id} onChange={(e) => setG({ ...g, level_id: e.target.value })}><option value="">اختار...</option>{d.levels.map((l) => <option key={l.id} value={l.id}>{l.subjects?.name} • {l.name} ({l.stages?.name})</option>)}</select></label>
             <label>اسم المجموعة<input className="fld" required value={g.name} onChange={(e) => setG({ ...g, name: e.target.value })} /></label>
             <label>الميعاد<input className="fld" placeholder="مثال: السبت والثلاثاء ٦ م" value={g.schedule} onChange={(e) => setG({ ...g, schedule: e.target.value })} /></label>
             <label>السعر الشهري<input className="fld" type="number" min="0" value={g.monthly_price} onChange={(e) => setG({ ...g, monthly_price: e.target.value })} /></label>
@@ -260,7 +262,7 @@ function Sessions({ uid, role }) {
   const [f, setF] = useState({ group_id: '', starts_at: '', topic: '', live_url: '' })
   const [ed, setEd] = useState(null)
   if (!d) return <Notice err={err} />
-  const gname = (id) => { const g = d.groups.find((x) => x.id === id); return g ? `${g.levels?.subjects?.name ?? ''} ${g.levels?.name ?? ''} · ${g.name}` : '—' }
+  const gname = (id) => { const g = d.groups.find((x) => x.id === id); return g ? `${g.levels?.subjects?.name ?? ''} ${g.levels?.name ?? ''} • ${g.name}` : '—' }
   async function act(fn, reset) { setMsg(''); try { await fn(); reset?.(); await load() } catch (e) { setMsg(e.message) } }
 
   return (
@@ -365,7 +367,7 @@ function Attendance() {
     } catch (e) { setMsg(e.message) }
   }
   if (!d) return <Notice err={err} />
-  const gname = (id) => { const g = d.groups.find((x) => x.id === id); return g ? `${g.levels?.subjects?.name ?? ''} ${g.levels?.name ?? ''} · ${g.name}` : '' }
+  const gname = (id) => { const g = d.groups.find((x) => x.id === id); return g ? `${g.levels?.subjects?.name ?? ''} ${g.levels?.name ?? ''} • ${g.name}` : '' }
 
   return (
     <section className="card">
@@ -374,7 +376,7 @@ function Attendance() {
       <label className="form-one">اختار الحصة
         <select className="fld" value={sid} onChange={(e) => pick(e.target.value)}>
           <option value="">اختار...</option>
-          {d.sessions.map((s) => <option key={s.id} value={s.id}>{fmtDT(s.starts_at)} · {gname(s.group_id)}</option>)}
+          {d.sessions.map((s) => <option key={s.id} value={s.id}>{fmtDT(s.starts_at)} • {gname(s.group_id)}</option>)}
         </select>
       </label>
       {rows && (
@@ -438,7 +440,7 @@ function Subscriptions({ role }) {
         <form className="form" onSubmit={activate}>
           <label>الطالب<select className="fld" required value={f.student_id} onChange={(e) => setF({ ...f, student_id: e.target.value })}><option value="">اختار...</option>{d.students.map((s) => <option key={s.id} value={s.id}>{s.full_name}</option>)}</select></label>
           <label>الخطة<select className="fld" required value={f.plan_id} onChange={(e) => setF({ ...f, plan_id: e.target.value })}><option value="">اختار...</option>{d.plans.map((p) => <option key={p.id} value={p.id}>{p.name} ({num(p.price)})</option>)}</select></label>
-          <label>المجموعة<select className="fld" value={f.group_id} onChange={(e) => setF({ ...f, group_id: e.target.value })}><option value="">غير محدد</option>{d.groups.map((g) => <option key={g.id} value={g.id}>{g.levels?.subjects?.name} {g.levels?.name} · {g.name}</option>)}</select></label>
+          <label>المجموعة<select className="fld" value={f.group_id} onChange={(e) => setF({ ...f, group_id: e.target.value })}><option value="">غير محدد</option>{d.groups.map((g) => <option key={g.id} value={g.id}>{g.levels?.subjects?.name} {g.levels?.name} • {g.name}</option>)}</select></label>
           <label>المبلغ المدفوع<input className="fld" type="number" min="0" placeholder="سعر الخطة لو سبته فاضي" value={f.amount} onChange={(e) => setF({ ...f, amount: e.target.value })} /></label>
           <button className="btn-primary">تفعيل وتسجيل الدفعة</button>
         </form>
@@ -530,7 +532,7 @@ function Assignments({ uid, role }) {
   const [msg, setMsg] = useState('')
   const [s, setS] = useState('')
   if (!d) return <Notice err={err} />
-  const gname = (id) => { const g = d.groups.find((x) => x.id === id); return g ? `${g.levels?.subjects?.name ?? ''} ${g.levels?.name ?? ''} · ${g.name}` : '—' }
+  const gname = (id) => { const g = d.groups.find((x) => x.id === id); return g ? `${g.levels?.subjects?.name ?? ''} ${g.levels?.name ?? ''} • ${g.name}` : '—' }
   const countSubs = (id) => d.subs.filter((x) => x.assignment_id === id).length
   const pending = (id) => d.subs.filter((x) => x.assignment_id === id && x.final_score == null).length
   const keysOf = async (id) => (await q(supabase.from('assignment_keys').select('answers').eq('assignment_id', id)))[0]?.answers ?? []
@@ -683,7 +685,7 @@ function ImportStudents() {
 
   const rows = parseRows(text)
   const good = rows.filter((r) => !r.bad)
-  const gname = (id) => { const g = d.groups.find((x) => x.id === id); return g ? `${g.levels?.subjects?.name ?? ''} ${g.levels?.name ?? ''} · ${g.name}` : '—' }
+  const gname = (id) => { const g = d.groups.find((x) => x.id === id); return g ? `${g.levels?.subjects?.name ?? ''} ${g.levels?.name ?? ''} • ${g.name}` : '—' }
   const existing = new Map(d.profiles.filter((p) => p.email).map((p) => [p.email.toLowerCase(), p.id]))
 
   function onFile(e) {
@@ -732,7 +734,7 @@ function ImportStudents() {
         <textarea className="fld area" rows={8} dir="auto" placeholder={'أحمد علي\tahmed@example.com\t01000000000\nمريم حسن\tmariam@example.com'} value={text} onChange={(e) => setText(e.target.value)} aria-label="بيانات الطلبة" />
         {rows.length > 0 && (
           <>
-            <p className="muted">{good.length.toLocaleString('ar-EG')} صف سليم{rows.length - good.length > 0 ? ` · ${(rows.length - good.length).toLocaleString('ar-EG')} فيه مشكلة (هيتجاهلوا)` : ''}</p>
+            <p className="muted">{good.length.toLocaleString('ar-EG')} صف سليم{rows.length - good.length > 0 ? ` • ${(rows.length - good.length).toLocaleString('ar-EG')} فيه مشكلة (هيتجاهلوا)` : ''}</p>
             <div className="tbl-wrap">
               <table>
                 <thead><tr><th>الاسم</th><th>الإيميل</th><th>الموبايل</th><th></th></tr></thead>
@@ -752,7 +754,7 @@ function ImportStudents() {
       </section>
 
       <section className="card">
-        <h2>المستوردين ({d.pending.length.toLocaleString('ar-EG')}) · لسه ما سجلوش: {waiting.toLocaleString('ar-EG')}</h2>
+        <h2>المستوردين ({d.pending.length.toLocaleString('ar-EG')}) • لسه ما سجلوش: {waiting.toLocaleString('ar-EG')}</h2>
         <p className="muted small">ابعت لهم رابط الموقع، وبعد ما يسجلوا بنفس الإيميل بتظهر حالتهم "انضم".</p>
         <div className="tbl-wrap">
           <table>
@@ -781,11 +783,11 @@ const TABS = {
     ['overview', 'نظرة عامة'], ['people', 'الحسابات'], ['import', 'استيراد طلبة'], ['content', 'المحتوى'],
     ['mygroups', 'المجموعات والطلاب'], ['sessions', 'الحصص'], ['attendance', 'الحضور'], ['grading', 'التصحيح'],
     ['assign', 'الواجبات'], ['announce', 'الإعلانات'], ['messages', 'الرسايل'], ['absences', 'الغياب'],
-    ['subs', 'الاشتراكات'], ['games', 'الألعاب'], ['log', 'السجل'],
+    ['requests', 'طلبات الاشتراك'], ['subs', 'الاشتراكات'], ['mypage', 'صفحات المدرسين'], ['games', 'الألعاب'], ['log', 'السجل'],
   ],
   teacher: [
     ['mygroups', 'مجموعاتي'], ['sessions', 'الحصص'], ['attendance', 'الحضور'], ['grading', 'التصحيح'],
-    ['assign', 'الواجبات'], ['announce', 'الإعلانات'], ['messages', 'الرسايل'], ['absences', 'الغياب'],
+    ['assign', 'الواجبات'], ['announce', 'الإعلانات'], ['messages', 'الرسايل'], ['absences', 'الغياب'], ['mypage', 'صفحتي'],
   ],
   assistant: [
     ['overview', 'نظرة عامة'], ['attendance', 'الحضور'], ['grading', 'التصحيح'], ['absences', 'الغياب'],
@@ -797,10 +799,13 @@ export default function Admin({ session, role }) {
   const uid = session.user.id
   const [tab, setTab] = useState(TABS[role][0][0])
   const [unread, setUnread] = useState(0)
+  const [pendingReq, setPendingReq] = useState(0)
   useEffect(() => {
     supabase.from('messages').select('id', { count: 'exact', head: true }).eq('from_parent', true).eq('read', false).then(({ count }) => setUnread(count ?? 0))
-  }, [tab])
-  const tabs = TABS[role].map(([k, l]) => [k, k === 'messages' && unread ? `${l} (${num(unread)})` : l])
+    if (role === 'manager') supabase.from('enroll_requests').select('id', { count: 'exact', head: true }).eq('status', 'pending').then(({ count }) => setPendingReq(count ?? 0))
+  }, [tab, role])
+  const badge = { messages: unread, requests: pendingReq }
+  const tabs = TABS[role].map(([k, l]) => [k, badge[k] ? `${l} (${num(badge[k])})` : l])
   const [asStudent, setAsStudent] = useState(false)
   if (asStudent) return (
     <>
@@ -811,7 +816,7 @@ export default function Admin({ session, role }) {
   return (
     <div className="admin">
       <header className="admin-top">
-        <div className="brand"><Logo size={40} /><div>اسم السنتر<small>لوحة الإدارة · {ROLE_AR[role]}</small></div></div>
+        <div className="brand"><Logo size={40} /><div>اسم السنتر<small>لوحة الإدارة • {ROLE_AR[role]}</small></div></div>
         <div className="inline">
           <button className="btn-link" onClick={() => setAsStudent(true)}>شوف شاشة الطالب</button>
           <button className="btn-link" onClick={() => supabase.auth.signOut()}>تسجيل الخروج</button>
@@ -841,6 +846,8 @@ export default function Admin({ session, role }) {
             {tab === 'announce' && <Announcements uid={uid} role={role} />}
             {tab === 'messages' && <Inbox uid={uid} />}
             {tab === 'absences' && <Absences />}
+            {tab === 'requests' && <Requests role={role} />}
+            {tab === 'mypage' && <TeacherPage uid={uid} role={role} />}
             {tab === 'assign' && <Assignments uid={uid} role={role} />}
             {tab === 'subs' && <Subscriptions role={role} />}
           </motion.div>

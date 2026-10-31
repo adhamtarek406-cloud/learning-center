@@ -4,6 +4,7 @@ import Logo from './Logo.jsx'
 import { motion } from 'framer-motion'
 import { Tabs, container, item } from './ui.jsx'
 import { Thread } from './Staff.jsx'
+import Teachers from './Teachers.jsx'
 
 const num = (n) => Number(n ?? 0).toLocaleString('ar-EG')
 const fmtDT = (iso) => new Intl.DateTimeFormat('ar-EG', { weekday: 'long', day: 'numeric', month: 'long', hour: 'numeric', minute: '2-digit' }).format(new Date(iso))
@@ -23,7 +24,7 @@ export default function Parent({ session }) {
   const [err, setErr] = useState('')
 
   async function loadKids() {
-    const { data, error } = await supabase.rpc('my_children')
+    const { data, error } = await supabase.rpc('my_kids')
     if (error) return setErr(error.message)
     setKids(data)
     if (data.length && !sel) setSel(data[0].id)
@@ -57,7 +58,7 @@ export default function Parent({ session }) {
   const kid = kids?.find((k) => k.id === sel)
   const first = kid?.full_name.split(' ')[0]
   const w = rep?.week
-  const sections = [['report', 'التقرير'], ['att', 'الحضور'], ['grades', 'الدرجات'], ['subs', 'الاشتراك والمدفوعات'], ['news', 'الإعلانات'], ['chat', `رسايل المدرس${unread[sel] ? ` (${num(unread[sel])})` : ''}`]]
+  const sections = [['report', 'التقرير'], ['att', 'الحضور'], ['grades', 'الدرجات'], ['subs', 'الاشتراك والمدفوعات'], ['teachers', `اشترك لـ${first ?? 'ابنك'}`], ['news', 'الإعلانات'], ['chat', `رسايل المدرس${unread[sel] ? ` (${num(unread[sel])})` : ''}`]]
 
   return (
     <div className="admin">
@@ -86,7 +87,7 @@ export default function Parent({ session }) {
                     <span className="chip">تقرير آخر ٧ أيام</span>
                     <div className="hero-title">{rep.name}</div>
                     <div className="hero-sub">
-                      {rep.next_session ? `الحصة الجاية: ${rep.next_session.subject} · ${rep.next_session.level} — ${fmtDT(rep.next_session.starts_at)}` : 'مفيش حصة قادمة متسجلة'}
+                      {rep.next_session ? `الحصة الجاية: ${rep.next_session.subject} • ${rep.next_session.level} — ${fmtDT(rep.next_session.starts_at)}` : 'مفيش حصة قادمة متسجلة'}
                     </div>
                   </div>
                   {det?.streak?.current > 0 && <span className="chip">{num(det.streak.current)} أيام نشاط ورا بعض</span>}
@@ -136,7 +137,7 @@ export default function Parent({ session }) {
                 <h2>حضور {first} (آخر ٩٠ يوم)</h2>
                 {!det ? <p className="muted">جاري التحميل...</p> : det.attendance.length ? det.attendance.map((a, i) => (
                   <div className="row" key={i}>
-                    <div className="grow"><div className="strong">{fmtDT(a.starts_at)}</div><div className="muted small">{a.subject} · {a.grp}{a.topic ? ` · ${a.topic}` : ''}</div></div>
+                    <div className="grow"><div className="strong">{fmtDT(a.starts_at)}</div><div className="muted small">{a.subject} • {a.grp}{a.topic ? ` • ${a.topic}` : ''}</div></div>
                     <span className={`pill ${a.present === true ? 'green' : a.present === false ? 'red' : ''}`}>{a.present === true ? 'حاضر' : a.present === false ? 'غايب' : 'لسه ما اتسجلش'}</span>
                   </div>
                 )) : <p className="muted">لسه مفيش حصص فاتت.</p>}
@@ -149,7 +150,7 @@ export default function Parent({ session }) {
                 {!det ? <p className="muted">جاري التحميل...</p> : det.grades.length ? det.grades.map((g, i) => (
                   <div className="row" key={i}>
                     <div className="grow">
-                      <div className="strong">{g.title} <span className="muted small">· {g.kind === 'quiz' ? 'كويز' : 'واجب'}</span></div>
+                      <div className="strong">{g.title} <span className="muted small">• {g.kind === 'quiz' ? 'كويز' : 'واجب'}</span></div>
                       <div className="muted small">اتسلّم {fmtD(g.submitted_at)}</div>
                       {g.feedback && <div className="feedback small"><b>تعليق المدرس:</b> {g.feedback}</div>}
                     </div>
@@ -165,7 +166,7 @@ export default function Parent({ session }) {
                 {!det ? <p className="muted">جاري التحميل...</p> : det.subscriptions.length ? det.subscriptions.map((s) => (
                   <div className="qbox" key={s.id}>
                     <div className="card-head">
-                      <div><span className="strong">{s.plan}</span><div className="muted small">بدأ {fmtD(s.starts_on)}{s.renews_on ? ` · يتجدد ${fmtD(s.renews_on)}` : ''}</div></div>
+                      <div><span className="strong">{s.plan}</span><div className="muted small">بدأ {fmtD(s.starts_on)}{s.renews_on ? ` • يتجدد ${fmtD(s.renews_on)}` : ''}</div></div>
                       <span className={`pill ${s.status === 'active' ? 'green' : ''}`}>{STATUS[s.status] ?? s.status}</span>
                     </div>
                     {s.payments.length ? s.payments.map((p, i) => (
@@ -182,10 +183,15 @@ export default function Parent({ session }) {
                 <h2>الإعلانات</h2>
                 {anns.length ? anns.map((a) => (
                   <div className="row" key={a.id}>
-                    <div className="grow"><div className="strong">{a.title}</div>{a.body && <div style={{ whiteSpace: 'pre-wrap' }}>{a.body}</div>}<div className="muted small">{a.author_name ?? ''} · {fmtDT(a.created_at)}</div></div>
+                    <div className="grow"><div className="strong">{a.title}</div>{a.body && <div style={{ whiteSpace: 'pre-wrap' }}>{a.body}</div>}<div className="muted small">{a.author_name ?? ''} • {fmtDT(a.created_at)}</div></div>
                   </div>
                 )) : <p className="muted">مفيش إعلانات.</p>}
               </section>
+            )}
+
+            {tab === 'teachers' && kid && (
+              <Teachers key={sel} studentId={sel} gradeId={kid.grade_id} who={first}
+                onGrade={async (g) => { const { error } = await supabase.rpc('set_child_grade', { p_student: sel, p_grade: g }); if (error) setErr(error.message); else await loadKids() }} />
             )}
 
             {tab === 'chat' && sel && (

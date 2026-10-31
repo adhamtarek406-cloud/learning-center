@@ -144,7 +144,7 @@ export default function AssignmentEditor({ groups, gname, initial, locked, onSav
         </div>
         <div className="form">
           <label>المجموعة<select className="fld" value={f.group_id} onChange={(e) => setF({ ...f, group_id: e.target.value })}><option value="">اختار...</option>{groups.map((g) => <option key={g.id} value={g.id}>{gname(g.id)}</option>)}</select></label>
-          <label style={{ flex: 1, minWidth: 220 }}>العنوان<input className="fld" placeholder="مثال: واجب الحصة الخامسة · الأرقام" value={f.title} onChange={(e) => setF({ ...f, title: e.target.value })} /></label>
+          <label style={{ flex: 1, minWidth: 220 }}>العنوان<input className="fld" placeholder="مثال: واجب الحصة الخامسة • الأرقام" value={f.title} onChange={(e) => setF({ ...f, title: e.target.value })} /></label>
           <label>النوع
             <div className="seg">
               <button type="button" className={f.kind === 'homework' ? 'on yes' : ''} onClick={() => setF({ ...f, kind: 'homework' })}>واجب</button>

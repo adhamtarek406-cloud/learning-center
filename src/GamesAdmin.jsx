@@ -113,9 +113,9 @@ export default function GamesAdmin() {
                     </div>
                   </div>
                   <div className="muted small">
-                    لعب: {num(s.plays)} مرة · {num(s.players)} طالب · النهاردة: {num(s.today)} · {num(g.max_daily_tries)} محاولات يوميًا · {num(g.seconds)} ثانية للجولة · {n ? `${num(n)} كلمة مخصصة` : 'القائمة الأساسية (ألماني ٢٦ كلمة)'}
+                    لعب: {num(s.plays)} مرة • {num(s.players)} طالب • النهاردة: {num(s.today)} • {num(g.max_daily_tries)} محاولات يوميًا • {num(g.seconds)} ثانية للجولة • {n ? `${num(n)} كلمة مخصصة` : 'القائمة الأساسية (ألماني ٢٦ كلمة)'}
                   </div>
-                  {d.tops[g.id]?.length > 0 && <div className="inline">{d.tops[g.id].map((r, i) => <span className="pill tag" key={i}>{num(i + 1)}. {r.first_name} · {num(r.score)}</span>)}</div>}
+                  {d.tops[g.id]?.length > 0 && <div className="inline">{d.tops[g.id].map((r, i) => <span className="pill tag" key={i}>{num(i + 1)}. {r.first_name} • {num(r.score)}</span>)}</div>}
                 </div>
               )
             })}

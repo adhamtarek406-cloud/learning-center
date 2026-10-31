@@ -4,6 +4,7 @@ import Logo from './Logo.jsx'
 import Solve from './Solve.jsx'
 import Game from './Game.jsx'
 import Review from './Review.jsx'
+import Teachers from './Teachers.jsx'
 import { motion } from 'framer-motion'
 import { container, item, rowItem, CountUp, GoIcon, Progress, Tabs } from './ui.jsx'
 
@@ -19,7 +20,7 @@ function whenLabel(iso) {
   const t = timeFmt.format(d)
   if (diff === 0) return `النهاردة ${t}`
   if (diff === 1) return `بكرة ${t}`
-  return `${dayName.format(d)} ${dateFmt.format(d)} · ${t}`
+  return `${dayName.format(d)} ${dateFmt.format(d)} • ${t}`
 }
 
 function dueLabel(iso) {
@@ -34,6 +35,7 @@ function dueLabel(iso) {
 
 const NAV = [
   ['home', 'الرئيسية', 'M3 11l9-8 9 8v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z'],
+  ['teachers', 'اختار مدرسك', 'M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75'],
   ['news', 'الإعلانات والتنبيهات', 'M6 8a6 6 0 1 1 12 0c0 7 3 9 3 9H3s3-2 3-9M10.3 21a1.94 1.94 0 0 0 3.4 0'],
   ['schedule', 'جدول الحصص', 'M3 8a3 3 0 0 1 3-3h12a3 3 0 0 1 3 3v10a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3zM8 3v4M16 3v4M3 10h18'],
   ['assign', 'الواجبات والكويزات', 'M6 3h9l4 4v14H6zM9 12h7M9 16h7'],
@@ -144,7 +146,7 @@ export default function Student({ session }) {
   const news = [
     ...anns.map((a) => ({ t: a.created_at, kind: 'إعلان', title: a.title, body: a.body, by: a.author_name })),
     ...allAssignments.filter((a) => a.created_at).map((a) => ({ t: a.created_at, kind: a.kind === 'quiz' ? 'كويز جديد' : 'واجب جديد', title: a.title, body: dueLabel(a.due_at) })),
-    ...allResults.filter((r) => r.graded_at).map((r) => ({ t: r.graded_at, kind: 'درجة جديدة', title: r.assignments?.title, body: `${fmt(r.final_score)}٪${r.feedback ? ` · ${r.feedback}` : ''}`, review: r.assignment_id })),
+    ...allResults.filter((r) => r.graded_at).map((r) => ({ t: r.graded_at, kind: 'درجة جديدة', title: r.assignments?.title, body: `${fmt(r.final_score)}٪${r.feedback ? ` • ${r.feedback}` : ''}`, review: r.assignment_id })),
   ].sort((a, b) => b.t.localeCompare(a.t)).slice(0, 40)
   const unseen = news.filter((n) => n.t > seen).length
 
@@ -197,12 +199,18 @@ export default function Student({ session }) {
         </motion.header>
 
         {sec === 'home' && (<>
+        {!profile.grade_id && (
+          <motion.section className="card nudge" variants={item} initial="hidden" animate="visible">
+            <div className="grow"><div className="strong">اختار صفك وشوف المدرسين المتاحين</div><div className="muted small">اشترك مع المدرس اللي يعجبك في المجموعة والميعاد اللي يناسبك.</div></div>
+            <button className="btn-primary" onClick={() => go('teachers')}>اختار مدرسك<GoIcon /></button>
+          </motion.section>
+        )}
         <motion.section className="hero" aria-label="الحصة القادمة" variants={item} initial="hidden" animate="visible">
           {next ? (
             <>
               <div>
-                <span className="chip">الحصة القادمة · {whenLabel(next.starts_at)}</span>
-                <div className="hero-title">{level?.subjects?.name} · {level?.name}</div>
+                <span className="chip">الحصة القادمة • {whenLabel(next.starts_at)}</span>
+                <div className="hero-title">{level?.subjects?.name} • {level?.name}</div>
                 <div className="hero-sub">{next.groups?.name}</div>
               </div>
               {next.live_url ? (
@@ -282,7 +290,7 @@ export default function Student({ session }) {
                 <div className="row" key={a.id}>
                   <div className="grow">
                     <div className="strong">{a.title}</div>
-                    <div className="muted small">{a.kind === 'quiz' ? 'كويز · ' : ''}{dueLabel(a.due_at)}</div>
+                    <div className="muted small">{a.kind === 'quiz' ? 'كويز • ' : ''}{dueLabel(a.due_at)}</div>
                   </div>
                   <button className="btn-outline" onClick={() => setView({ type: 'assignment', a })}>ابدأ</button>
                 </div>
@@ -326,7 +334,7 @@ export default function Student({ session }) {
         </>)}
 
         {sec !== 'home' && (
-          <Pages key={sec} sec={sec} {...{ myFirst, upcoming, past, assignments, allResults, gameList, boards, playedMap, badges, overall, scoreRows, points, subs, news, seenBefore, streak, profile }} email={session.user.email} onSaved={() => setTick((t) => t + 1)} onReview={(id) => setView({ type: 'review', id })} onAssign={(a) => setView({ type: 'assignment', a })} onPlay={(g) => setView({ type: 'game', game: g })} />
+          <Pages key={sec} sec={sec} {...{ myFirst, upcoming, past, assignments, allResults, gameList, boards, playedMap, badges, overall, scoreRows, points, subs, news, seenBefore, streak, profile }} uid={uid} email={session.user.email} onSaved={() => setTick((t) => t + 1)} onReview={(id) => setView({ type: 'review', id })} onAssign={(a) => setView({ type: 'assignment', a })} onPlay={(g) => setView({ type: 'game', game: g })} />
         )}
       </main>
     </div>
@@ -353,9 +361,9 @@ function BoardList({ rows, myFirst }) {
 
 const STATUS_AR = { active: 'ساري', paused: 'موقوف', expired: 'منتهي', cancelled: 'ملغي' }
 
-function Pages({ sec, myFirst, upcoming, past, assignments, allResults, gameList, boards, playedMap, badges, overall, scoreRows, points, subs, news, seenBefore, streak, profile, email, onSaved, onReview, onAssign, onPlay }) {
+function Pages({ sec, myFirst, upcoming, past, assignments, allResults, gameList, boards, playedMap, badges, overall, scoreRows, points, subs, news, seenBefore, streak, profile, uid, email, onSaved, onReview, onAssign, onPlay }) {
   const [bt, setBt] = useState(gameList[0]?.id ?? 'all')
-  const lv = (x) => `${x.groups?.levels?.subjects?.name ?? ''} · ${x.groups?.levels?.name ?? ''}`
+  const lv = (x) => `${x.groups?.levels?.subjects?.name ?? ''} • ${x.groups?.levels?.name ?? ''}`
   const wrap = (children) => (
     <motion.div className="pane" variants={container} initial="hidden" animate="visible">{children}</motion.div>
   )
@@ -369,7 +377,7 @@ function Pages({ sec, myFirst, upcoming, past, assignments, allResults, gameList
             <div className="row" key={x.id}>
               <div className="grow">
                 <div className="strong">{whenLabel(x.starts_at)}</div>
-                <div className="muted small">{lv(x)} · {x.groups?.name}{x.topic ? ` · ${x.topic}` : ''}</div>
+                <div className="muted small">{lv(x)} • {x.groups?.name}{x.topic ? ` • ${x.topic}` : ''}</div>
               </div>
               {x.live_url ? <a className="btn-outline" href={x.live_url} target="_blank" rel="noreferrer">ادخل</a> : <span className="muted small">الرابط بيظهر قبلها</span>}
             </div>
@@ -381,7 +389,7 @@ function Pages({ sec, myFirst, upcoming, past, assignments, allResults, gameList
             <div className="row" key={x.id}>
               <div className="grow">
                 <div className="strong">{dayName.format(new Date(x.starts_at))} {dateFmt.format(new Date(x.starts_at))}</div>
-                <div className="muted small">{lv(x)}{x.topic ? ` · ${x.topic}` : ''}</div>
+                <div className="muted small">{lv(x)}{x.topic ? ` • ${x.topic}` : ''}</div>
               </div>
               {x.recording_url ? <a className="btn-outline" href={x.recording_url} target="_blank" rel="noreferrer">شوف التسجيل</a> : <span className="muted small">مفيش تسجيل</span>}
             </div>
@@ -399,7 +407,7 @@ function Pages({ sec, myFirst, upcoming, past, assignments, allResults, gameList
             <div className="row" key={a.id}>
               <div className="grow">
                 <div className="strong">{a.title}</div>
-                <div className="muted small">{a.kind === 'quiz' ? 'كويز · ' : 'واجب · '}{dueLabel(a.due_at)}</div>
+                <div className="muted small">{a.kind === 'quiz' ? 'كويز • ' : 'واجب • '}{dueLabel(a.due_at)}</div>
               </div>
               <button className="btn-outline" onClick={() => onAssign(a)}>ابدأ</button>
             </div>
@@ -411,7 +419,7 @@ function Pages({ sec, myFirst, upcoming, past, assignments, allResults, gameList
             <div className="row" key={r.assignment_id}>
               <div className="grow">
                 <div className="strong">{r.assignments?.title}</div>
-                <div className="muted small">{r.assignments?.kind === 'quiz' ? 'كويز · ' : 'واجب · '}اتسلّم {dateFmt.format(new Date(r.submitted_at))}</div>
+                <div className="muted small">{r.assignments?.kind === 'quiz' ? 'كويز • ' : 'واجب • '}اتسلّم {dateFmt.format(new Date(r.submitted_at))}</div>
               </div>
               <span className={`pill ${r.final_score != null ? 'green' : ''}`}>
                 {r.final_score != null ? `${fmt(r.final_score)}٪` : r.auto_score != null ? `${fmt(r.auto_score)}٪ (مبدئي)` : 'بانتظار تصحيح المدرس'}
@@ -484,7 +492,7 @@ function Pages({ sec, myFirst, upcoming, past, assignments, allResults, gameList
             <div className="grow">
               <div><span className="pill">{n.kind}</span> <span className="strong">{n.title}</span>{n.t > seenBefore && <span className="pill red" style={{ marginInlineStart: 6 }}>جديد</span>}</div>
               {n.body && <div className="muted small" style={{ whiteSpace: 'pre-wrap' }}>{n.body}</div>}
-              <div className="muted small">{n.by ? `${n.by} · ` : ''}{dateFmt.format(new Date(n.t))}</div>
+              <div className="muted small">{n.by ? `${n.by} • ` : ''}{dateFmt.format(new Date(n.t))}</div>
             </div>
             {n.review && <button className="btn-outline" onClick={() => onReview(n.review)}>مراجعة</button>}
           </div>
@@ -494,6 +502,14 @@ function Pages({ sec, myFirst, upcoming, past, assignments, allResults, gameList
 
   if (sec === 'me') return wrap(<Me profile={profile} email={email} onSaved={onSaved} />)
 
+  if (sec === 'teachers')
+    return (
+      <div className="pane">
+        <Teachers studentId={uid} gradeId={profile.grade_id} canReview who="إنت"
+          onGrade={async (g) => { const { error } = await supabase.rpc('set_my_grade', { p_grade: g }); if (!error) onSaved() }} />
+      </div>
+    )
+
   // sub
   return wrap(
     <motion.section variants={item} className="card">
@@ -502,7 +518,7 @@ function Pages({ sec, myFirst, upcoming, past, assignments, allResults, gameList
         <div className="row" key={x.id}>
           <div className="grow">
             <div className="strong">{x.plans?.name}</div>
-            <div className="muted small">بدأ {dateFmt.format(new Date(x.starts_on))}{x.renews_on ? ` · يتجدد ${dateFmt.format(new Date(x.renews_on))}` : ''}</div>
+            <div className="muted small">بدأ {dateFmt.format(new Date(x.starts_on))}{x.renews_on ? ` • يتجدد ${dateFmt.format(new Date(x.renews_on))}` : ''}</div>
           </div>
           <span className={`pill ${x.status === 'active' ? 'green' : ''}`}>{STATUS_AR[x.status] ?? x.status}</span>
         </div>

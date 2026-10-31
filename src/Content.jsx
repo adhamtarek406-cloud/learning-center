@@ -8,9 +8,9 @@ const EMPTY_G = { id: null, level_id: '', name: '', schedule: '', monthly_price:
 
 export default function Content() {
   const [d, load, err] = useLoad(async () => {
-    const [groups, levels, stages, subjects, staff, enr, sess, asg, centers] = await Promise.all([
+    const [groups, levels, stages, subjects, staff, enr, sess, asg, centers, grades] = await Promise.all([
       q(supabase.from('groups').select('id, name, schedule, monthly_price, capacity, active, teacher_id, level_id').order('name')),
-      q(supabase.from('levels').select('id, name, stage_id, subject_id').order('name')),
+      q(supabase.from('levels').select('id, name, stage_id, subject_id, grade_id').order('name')),
       q(supabase.from('stages').select('id, name, sort').order('sort')),
       q(supabase.from('subjects').select('id, name, is_language').order('name')),
       q(supabase.from('profiles').select('id, full_name').in('role', ['manager', 'teacher', 'assistant']).eq('active', true)),
@@ -18,21 +18,24 @@ export default function Content() {
       q(supabase.from('sessions').select('group_id')),
       q(supabase.from('assignments').select('group_id')),
       q(supabase.from('centers').select('id').limit(1)),
+      q(supabase.from('grades').select('id, name, stage_id, sort').order('sort')),
     ])
-    return { groups, levels, stages, subjects, staff, enr, sess, asg, center: centers[0] }
+    return { groups, levels, stages, subjects, staff, enr, sess, asg, center: centers[0], grades }
   })
   const [tab, setTab] = useState('groups')
   const [msg, setMsg] = useState('')
   const [gf, setGf] = useState(null)
   const [st, setSt] = useState('')
   const [sj, setSj] = useState({ name: '', is_language: false })
-  const [lv, setLv] = useState({ stage_id: '', subject_id: '', name: '' })
+  const [lv, setLv] = useState({ stage_id: '', subject_id: '', name: '', grade_id: '' })
+  const [gr, setGr] = useState({ stage_id: '', name: '' })
   if (!d) return <Notice err={err} />
 
   const stage = (id) => d.stages.find((x) => x.id === id)?.name ?? '—'
   const subject = (id) => d.subjects.find((x) => x.id === id)?.name ?? '—'
   const levelOf = (id) => d.levels.find((x) => x.id === id)
-  const levelLabel = (l) => (l ? `${subject(l.subject_id)} · ${l.name} (${stage(l.stage_id)})` : '—')
+  const gradeName = (id) => d.grades.find((x) => x.id === id)?.name
+  const levelLabel = (l) => (l ? `${subject(l.subject_id)} • ${l.name} (${gradeName(l.grade_id) ?? stage(l.stage_id)})` : '—')
   const teacher = (id) => d.staff.find((x) => x.id === id)?.full_name ?? '—'
   const cnt = (arr, id) => arr.filter((x) => x.group_id === id).length
 
@@ -85,7 +88,7 @@ export default function Content() {
       <Notice err={msg} />
       <section className="card">
         <div className="card-head">
-          <Tabs flat id="content-tab" label="المحتوى" value={tab} onChange={setTab} items={[['groups', `المجموعات (${num(d.groups.length)})`], ['structure', 'المراحل والمواد والمستويات']]} />
+          <Tabs flat id="content-tab" label="المحتوى" value={tab} onChange={setTab} items={[['groups', `المجموعات (${num(d.groups.length)})`], ['structure', 'المراحل والصفوف والمواد']]} />
           {tab === 'groups' && <button className="btn-primary" onClick={() => setGf({ ...EMPTY_G })}>+ مجموعة جديدة</button>}
         </div>
 
@@ -142,6 +145,31 @@ export default function Content() {
               <button className="btn-outline">إضافة مرحلة</button>
             </form>
 
+            <h3 className="sub-h">الصفوف الدراسية</h3>
+            <p className="muted small">الطالب بيختار صفه، وبيشوف المدرسين والمجموعات اللي مستواها مربوط بالصف ده (أو المستويات المفتوحة لكل الصفوف زي اللغات).</p>
+            <div className="tbl-wrap">
+              <table>
+                <thead><tr><th>المرحلة</th><th>الصف</th><th>الترتيب</th><th>المستويات المربوطة</th><th></th></tr></thead>
+                <tbody>
+                  {d.stages.flatMap((s) => d.grades.filter((g) => g.stage_id === s.id).map((g) => (
+                    <tr key={g.id}>
+                      <td>{s.name}</td>
+                      <td><Editable label="اسم الصف" value={g.name} onSave={(v) => v.trim() && act(() => q(supabase.from('grades').update({ name: v.trim() }).eq('id', g.id)))} /></td>
+                      <td><Editable label="ترتيب الصف" type="number" width={70} value={g.sort} onSave={(v) => act(() => q(supabase.from('grades').update({ sort: Number(v) }).eq('id', g.id)))} /></td>
+                      <td>{num(d.levels.filter((l) => l.grade_id === g.id).length)}</td>
+                      <td><button className="btn-danger" onClick={() => window.confirm(`حذف "${g.name}"؟ المستويات المربوطة بيه هتبقى مفتوحة لكل الصفوف.`) && act(() => q(supabase.from('grades').delete().eq('id', g.id)))}>حذف</button></td>
+                    </tr>
+                  )))}
+                  {d.grades.length === 0 && <tr><td colSpan="5" className="muted">مفيش صفوف لسه.</td></tr>}
+                </tbody>
+              </table>
+            </div>
+            <form className="form" onSubmit={(e) => { e.preventDefault(); act(() => q(supabase.from('grades').insert({ stage_id: gr.stage_id, name: gr.name.trim(), sort: d.grades.filter((x) => x.stage_id === gr.stage_id).length + 1 })), () => setGr({ stage_id: gr.stage_id, name: '' })) }}>
+              <label>المرحلة<select className="fld" required value={gr.stage_id} onChange={(e) => setGr({ ...gr, stage_id: e.target.value })}><option value="">اختار...</option>{d.stages.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</select></label>
+              <label>صف جديد<input className="fld" required placeholder="مثال: الصف الرابع الابتدائي" value={gr.name} onChange={(e) => setGr({ ...gr, name: e.target.value })} /></label>
+              <button className="btn-outline">إضافة صف</button>
+            </form>
+
             <h3 className="sub-h">المواد</h3>
             <div className="tbl-wrap">
               <table>
@@ -165,28 +193,35 @@ export default function Content() {
               <button className="btn-outline">إضافة مادة</button>
             </form>
 
-            <h3 className="sub-h">المستويات (الصفوف)</h3>
+            <h3 className="sub-h">المستويات</h3>
             <div className="tbl-wrap">
               <table>
-                <thead><tr><th>المرحلة</th><th>المادة</th><th>اسم المستوى</th><th>المجموعات</th><th></th></tr></thead>
+                <thead><tr><th>المرحلة</th><th>المادة</th><th>اسم المستوى</th><th>الصف</th><th>المجموعات</th><th></th></tr></thead>
                 <tbody>
                   {d.levels.map((l) => (
                     <tr key={l.id}>
                       <td>{stage(l.stage_id)}</td>
                       <td>{subject(l.subject_id)}</td>
                       <td><Editable label="اسم المستوى" value={l.name} onSave={(v) => v.trim() && act(() => q(supabase.from('levels').update({ name: v.trim() }).eq('id', l.id)))} /></td>
+                      <td>
+                        <select className="fld" aria-label="الصف" value={l.grade_id ?? ''} onChange={(e) => act(() => q(supabase.from('levels').update({ grade_id: e.target.value || null }).eq('id', l.id)))}>
+                          <option value="">مفتوح لكل الصفوف</option>
+                          {d.grades.filter((g) => g.stage_id === l.stage_id).map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}
+                        </select>
+                      </td>
                       <td>{num(d.groups.filter((g) => g.level_id === l.id).length)}</td>
                       <td><button className="btn-danger" onClick={() => delLevel(l)}>حذف</button></td>
                     </tr>
                   ))}
-                  {d.levels.length === 0 && <tr><td colSpan="5" className="muted">مفيش مستويات لسه.</td></tr>}
+                  {d.levels.length === 0 && <tr><td colSpan="6" className="muted">مفيش مستويات لسه.</td></tr>}
                 </tbody>
               </table>
             </div>
-            <form className="form" onSubmit={(e) => { e.preventDefault(); act(async () => { await q(supabase.from('levels').insert({ ...lv, name: lv.name.trim() })); logAct('level_created', 'levels', null, { name: lv.name.trim() }) }, () => setLv({ stage_id: '', subject_id: '', name: '' })) }}>
+            <form className="form" onSubmit={(e) => { e.preventDefault(); act(async () => { await q(supabase.from('levels').insert({ ...lv, name: lv.name.trim(), grade_id: lv.grade_id || null })); logAct('level_created', 'levels', null, { name: lv.name.trim() }) }, () => setLv({ stage_id: '', subject_id: '', name: '', grade_id: '' })) }}>
               <label>المرحلة<select className="fld" required value={lv.stage_id} onChange={(e) => setLv({ ...lv, stage_id: e.target.value })}><option value="">اختار...</option>{d.stages.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</select></label>
               <label>المادة<select className="fld" required value={lv.subject_id} onChange={(e) => setLv({ ...lv, subject_id: e.target.value })}><option value="">اختار...</option>{d.subjects.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</select></label>
-              <label>اسم الصف أو المستوى<input className="fld" required placeholder="مثال: الصف الثالث الإعدادي" value={lv.name} onChange={(e) => setLv({ ...lv, name: e.target.value })} /></label>
+              <label>الصف<select className="fld" value={lv.grade_id} onChange={(e) => setLv({ ...lv, grade_id: e.target.value })}><option value="">مفتوح لكل الصفوف</option>{d.grades.filter((g) => g.stage_id === lv.stage_id).map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}</select></label>
+              <label>اسم المستوى<input className="fld" required placeholder="مثال: رياضيات تالتة إعدادي، أو A1" value={lv.name} onChange={(e) => setLv({ ...lv, name: e.target.value })} /></label>
               <button className="btn-outline">إضافة مستوى</button>
             </form>
           </div>
