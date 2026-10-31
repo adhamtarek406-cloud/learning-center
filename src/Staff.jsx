@@ -3,6 +3,7 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { supabase } from './supabase.js'
 import { Tabs, container, item } from './ui.jsx'
 import { fmtDT, fmtD, num, q, useLoad, Notice, Modal, logAct } from './adminkit.jsx'
+import { TYPES, typeOf, pointsOf, isCorrect, answerText, keyText } from './questions.js'
 
 const gLabel = (g) => (g ? `${g.levels?.subjects?.name ?? ''} ${g.levels?.name ?? ''} · ${g.name}` : '—')
 const GSEL = 'id, name, schedule, teacher_id, active, levels(name, subjects(name))'
@@ -252,7 +253,7 @@ export function Grading({ uid }) {
   )
 }
 
-function GradeCard({ s, keys, uid, onDone }) {
+export function GradeCard({ s, keys, uid, onDone }) {
   const [score, setScore] = useState(s.final_score ?? s.auto_score ?? '')
   const [fb, setFb] = useState(s.feedback ?? '')
   const [msg, setMsg] = useState('')
@@ -276,13 +277,13 @@ function GradeCard({ s, keys, uid, onDone }) {
       <ol className="ans">
         {qs.map((x, i) => {
           const a = s.answers?.[i]
-          const isMcq = x.type !== 'text'
-          const right = isMcq && keys && keys[i] != null ? Number(a) === Number(keys[i]) : null
+          const k = keys?.[i]
+          const right = isCorrect(x, a, k)
           return (
             <li key={i}>
-              <span className="muted">{x.q}</span><br />
-              <b className={right === true ? 'ok-t' : right === false ? 'bad-t' : ''}>{isMcq ? (x.options?.[a] ?? '—') : (a || '—')}</b>
-              {right === false && <span className="muted small"> (الصح: {x.options?.[keys[i]]})</span>}
+              <span className="muted">{x.q}</span> <span className="muted small">({TYPES[typeOf(x)]}{pointsOf(x) !== 1 ? `، ${num(pointsOf(x))} درجة` : ''})</span><br />
+              <b className={right === true ? 'ok-t' : right === false ? 'bad-t' : ''} style={{ whiteSpace: 'pre-wrap' }}>{answerText(x, a)}</b>
+              {right === false && k != null && <span className="muted small"> (الصح: {keyText(x, k)})</span>}
             </li>
           )
         })}

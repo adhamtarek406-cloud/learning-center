@@ -10,7 +10,9 @@ import Accounts from './Accounts.jsx'
 import Content from './Content.jsx'
 import GamesAdmin from './GamesAdmin.jsx'
 import Overview, { LogTab } from './Overview.jsx'
-import { MyGroups, QuickAttendance, Grading, Announcements, Inbox, Absences } from './Staff.jsx'
+import { MyGroups, QuickAttendance, Grading, GradeCard, Announcements, Inbox, Absences } from './Staff.jsx'
+import AssignmentEditor from './AssignmentEditor.jsx'
+import Solve from './Solve.jsx'
 
 const toLocalInput = (iso) => { const x = new Date(iso); x.setMinutes(x.getMinutes() - x.getTimezoneOffset()); return x.toISOString().slice(0, 16) }
 
@@ -511,125 +513,116 @@ function PriceField({ value, onSave }) {
 }
 
 /* ---------------- الواجبات والكويزات ---------------- */
-const emptyQ = (type) => ({ type, q: '', options: ['', '', '', ''], key: 0 })
-
 function Assignments({ uid, role }) {
   const [d, load, err] = useLoad(async () => {
+    const gq = supabase.from('groups').select('id, name, levels(name, subjects(name))')
     const [groups, items, subs] = await Promise.all([
-      q((role === 'teacher' ? supabase.from('groups').select('id, name, levels(name, subjects(name))').eq('teacher_id', uid) : supabase.from('groups').select('id, name, levels(name, subjects(name))')).order('name')),
-      q(supabase.from('assignments').select('id, title, kind, due_at, group_id, questions').order('created_at', { ascending: false }).limit(60)),
-      q(supabase.from('submissions').select('assignment_id')),
+      q((role === 'teacher' ? gq.eq('teacher_id', uid) : gq).order('name')),
+      q(supabase.from('assignments').select('id, title, kind, due_at, group_id, questions, available_from, time_limit_min, shuffle_questions, shuffle_options, show_answers, allow_late, created_at').order('created_at', { ascending: false }).limit(100)),
+      q(supabase.from('submissions').select('assignment_id, final_score')),
     ])
     return { groups, items, subs }
   })
-  const [msg, setMsg] = useState('')
+  const [mode, setMode] = useState(null)
   const [open, setOpen] = useState(null)
-  const [f, setF] = useState({ group_id: '', title: '', kind: 'homework', due_at: '' })
-  const [ed, setEd] = useState(null)
-  const [qs, setQs] = useState([emptyQ('mcq')])
+  const [copy, setCopy] = useState(null)
+  const [pv, setPv] = useState(null)
+  const [msg, setMsg] = useState('')
+  const [s, setS] = useState('')
   if (!d) return <Notice err={err} />
   const gname = (id) => { const g = d.groups.find((x) => x.id === id); return g ? `${g.levels?.subjects?.name ?? ''} ${g.levels?.name ?? ''} · ${g.name}` : '—' }
-  const countSubs = (id) => d.subs.filter((s) => s.assignment_id === id).length
+  const countSubs = (id) => d.subs.filter((x) => x.assignment_id === id).length
+  const pending = (id) => d.subs.filter((x) => x.assignment_id === id && x.final_score == null).length
+  const keysOf = async (id) => (await q(supabase.from('assignment_keys').select('answers').eq('assignment_id', id)))[0]?.answers ?? []
+  const back = () => { setMode(null); load() }
 
-  const validQs = qs.every((x) => x.q.trim() && (x.type === 'text' || x.options.every((o) => o.trim())))
+  if (mode) return <AssignmentEditor groups={d.groups} gname={gname} initial={mode.edit} locked={mode.locked} onSaved={back} onCancel={() => setMode(null)} />
+  if (open) return <Submissions assignment={open} uid={uid} onBack={() => { setOpen(null); load() }} />
 
-  async function create(e) {
-    e.preventDefault()
+  async function edit(a) {
     setMsg('')
+    try { setMode({ edit: { ...a, keys: await keysOf(a.id) }, locked: countSubs(a.id) > 0 }) } catch (e) { setMsg(e.message) }
+  }
+  async function doCopy(e) {
+    e.preventDefault(); setMsg('')
     try {
-      const questions = qs.map((x) => (x.type === 'text' ? { type: 'text', q: x.q.trim() } : { type: 'mcq', q: x.q.trim(), options: x.options.map((o) => o.trim()) }))
-      const keys = qs.map((x) => (x.type === 'text' ? null : Number(x.key)))
-      const [a] = await q(supabase.from('assignments').insert({ group_id: f.group_id, title: f.title, kind: f.kind, due_at: f.due_at ? new Date(f.due_at).toISOString() : null, questions }).select('id'))
-      await q(supabase.from('assignment_keys').insert({ assignment_id: a.id, answers: keys }))
-      setF({ group_id: '', title: '', kind: 'homework', due_at: '' })
-      setQs([emptyQ('mcq')])
-      await load()
+      const src = copy.a
+      const keys = await keysOf(src.id)
+      const { id, created_at, ...rest } = src // eslint-disable-line no-unused-vars
+      const [n] = await q(supabase.from('assignments').insert({ ...rest, group_id: copy.group_id, title: copy.title.trim(), due_at: null, available_from: null }).select('id'))
+      await q(supabase.from('assignment_keys').insert({ assignment_id: n.id, answers: keys }))
+      logAct('assignment_copied', 'assignments', n.id, { title: copy.title.trim() })
+      setCopy(null); await load()
     } catch (e2) { setMsg(e2.message) }
   }
-
-  const upd = (i, patch) => setQs(qs.map((x, j) => (j === i ? { ...x, ...patch } : x)))
-
-  if (open) return <Submissions assignment={open} onBack={() => { setOpen(null); load() }} />
+  async function preview(a) {
+    setMsg('')
+    try { setPv({ ...a, keys: await keysOf(a.id) }) } catch (e) { setMsg(e.message) }
+  }
+  const term = s.trim().toLowerCase()
+  const shown = d.items.filter((a) => !term || `${a.title} ${gname(a.group_id)}`.toLowerCase().includes(term))
+  const now = new Date().toISOString()
 
   return (
     <>
       <Notice err={msg} />
       <section className="card">
-        <h2>واجب أو كويز جديد</h2>
-        <form onSubmit={create} className="stack">
-          <div className="form">
-            <label>المجموعة<select className="fld" required value={f.group_id} onChange={(e) => setF({ ...f, group_id: e.target.value })}><option value="">اختار...</option>{d.groups.map((g) => <option key={g.id} value={g.id}>{gname(g.id)}</option>)}</select></label>
-            <label>العنوان<input className="fld" required value={f.title} onChange={(e) => setF({ ...f, title: e.target.value })} /></label>
-            <label>النوع<select className="fld" value={f.kind} onChange={(e) => setF({ ...f, kind: e.target.value })}><option value="homework">واجب</option><option value="quiz">كويز</option></select></label>
-            <label>آخر ميعاد<input className="fld" type="datetime-local" value={f.due_at} onChange={(e) => setF({ ...f, due_at: e.target.value })} /></label>
-          </div>
-          {qs.map((x, i) => (
-            <div className="qbox" key={i}>
-              <div className="card-head">
-                <span className="strong">سؤال {num(i + 1)} · {x.type === 'text' ? 'مقالي (تصحيح يدوي)' : 'اختيار من متعدد (تصحيح تلقائي)'}</span>
-                {qs.length > 1 && <button type="button" className="btn-danger" onClick={() => setQs(qs.filter((_, j) => j !== i))}>حذف السؤال</button>}
-              </div>
-              <label className="form-one">نص السؤال<input className="fld" value={x.q} onChange={(e) => upd(i, { q: e.target.value })} /></label>
-              {x.type === 'mcq' && (
-                <div className="opts-edit" role="radiogroup" aria-label="الإجابة الصحيحة">
-                  {x.options.map((o, k) => (
-                    <label className="check" key={k}>
-                      <input type="radio" name={`key${i}`} checked={Number(x.key) === k} onChange={() => upd(i, { key: k })} aria-label={`الاختيار ${k + 1} هو الإجابة الصحيحة`} />
-                      <input className="fld grow" placeholder={`الاختيار ${num(k + 1)}`} value={o} onChange={(e) => upd(i, { options: x.options.map((y, m) => (m === k ? e.target.value : y)) })} />
-                    </label>
-                  ))}
-                  <p className="muted small">الدايرة المحددة جنب الاختيار هي الإجابة الصحيحة.</p>
-                </div>
-              )}
-            </div>
-          ))}
+        <div className="card-head">
+          <h2>الواجبات والكويزات</h2>
           <div className="inline">
-            <button type="button" className="btn-outline" onClick={() => setQs([...qs, emptyQ('mcq')])}>+ سؤال اختيار من متعدد</button>
-            <button type="button" className="btn-outline" onClick={() => setQs([...qs, emptyQ('text')])}>+ سؤال مقالي</button>
+            <input className="fld" style={{ maxWidth: 240 }} placeholder="بحث" value={s} onChange={(e) => setS(e.target.value)} />
+            <button className="btn-primary" disabled={!d.groups.length} onClick={() => setMode({})}>+ واجب أو كويز جديد</button>
           </div>
-          <button className="btn-primary" disabled={!validQs}>نشر للطلبة</button>
-        </form>
-      </section>
-
-      <section className="card">
-        <h2>الواجبات والكويزات</h2>
+        </div>
+        {!d.groups.length && <p className="muted">مفيش مجموعات متاحة ليك لسه.</p>}
         <div className="tbl-wrap">
           <table>
-            <thead><tr><th>العنوان</th><th>النوع</th><th>المجموعة</th><th>آخر ميعاد</th><th>التسليمات</th><th></th></tr></thead>
+            <thead><tr><th>العنوان</th><th>المجموعة</th><th>آخر ميعاد</th><th>الأسئلة</th><th>التسليمات</th><th>إجراءات</th></tr></thead>
             <tbody>
-              {d.items.map((a) => (
+              {shown.map((a) => (
                 <tr key={a.id}>
-                  <td className="strong">{a.title}</td>
-                  <td>{a.kind === 'quiz' ? 'كويز' : 'واجب'}</td>
+                  <td>
+                    <div className="strong">{a.title}</div>
+                    <div className="chips">
+                      <span className="pill">{a.kind === 'quiz' ? 'كويز' : 'واجب'}</span>
+                      {a.available_from && a.available_from > now && <span className="pill gold">مجدول {fmtDT(a.available_from)}</span>}
+                      {a.time_limit_min && <span className="pill">{num(a.time_limit_min)} دقيقة</span>}
+                    </div>
+                  </td>
                   <td>{gname(a.group_id)}</td>
                   <td>{a.due_at ? fmtDT(a.due_at) : '—'}</td>
-                  <td>{num(countSubs(a.id))}</td>
+                  <td>{num(a.questions?.length ?? 0)}</td>
+                  <td>{num(countSubs(a.id))}{pending(a.id) > 0 && <span className="pill red" style={{ marginInlineStart: 6 }}>{num(pending(a.id))} محتاج تصحيح</span>}</td>
                   <td>
                     <div className="inline">
                       <button className="btn-outline" onClick={() => setOpen(a)}>التسليمات</button>
-                      <button className="btn-link" onClick={() => setEd({ id: a.id, title: a.title, kind: a.kind, group_id: a.group_id, due_at: a.due_at ? toLocalInput(a.due_at) : '' })}>تعديل</button>
+                      <button className="btn-link" onClick={() => edit(a)}>تعديل</button>
+                      <button className="btn-link" onClick={() => preview(a)}>معاينة</button>
+                      <button className="btn-link" onClick={() => setCopy({ a, group_id: a.group_id, title: `${a.title} (نسخة)` })}>نسخ</button>
                       <button className="btn-danger" onClick={() => window.confirm(`حذف "${a.title}" مع ${num(countSubs(a.id))} تسليم؟ مينفعش ترجّعه.`) && (async () => { setMsg(''); try { await q(supabase.from('assignments').delete().eq('id', a.id)); logAct('assignment_deleted', 'assignments', a.id, { title: a.title }); await load() } catch (e) { setMsg(e.message) } })()}>حذف</button>
                     </div>
                   </td>
                 </tr>
               ))}
-              {d.items.length === 0 && <tr><td colSpan="6" className="muted">مفيش واجبات لسه.</td></tr>}
+              {shown.length === 0 && <tr><td colSpan="6" className="muted">مفيش واجبات. اضغط "واجب أو كويز جديد"، أو ارفع أسئلتك من ملف Excel جوه المحرر.</td></tr>}
             </tbody>
           </table>
         </div>
       </section>
       <AnimatePresence>
-        {ed && (
-          <Modal key="ae" title="تعديل واجب / كويز" onClose={() => setEd(null)}>
-            <form className="form" onSubmit={async (e) => { e.preventDefault(); setMsg(''); try { await q(supabase.from('assignments').update({ title: ed.title, kind: ed.kind, group_id: ed.group_id, due_at: ed.due_at ? new Date(ed.due_at).toISOString() : null }).eq('id', ed.id)); logAct('assignment_updated', 'assignments', ed.id, { title: ed.title }); setEd(null); await load() } catch (e2) { setMsg(e2.message) } }}>
-              <label>العنوان<input className="fld" required value={ed.title} onChange={(e) => setEd({ ...ed, title: e.target.value })} /></label>
-              <label>المجموعة<select className="fld" required value={ed.group_id} onChange={(e) => setEd({ ...ed, group_id: e.target.value })}>{d.groups.map((g) => <option key={g.id} value={g.id}>{gname(g.id)}</option>)}</select></label>
-              <label>النوع<select className="fld" value={ed.kind} onChange={(e) => setEd({ ...ed, kind: e.target.value })}><option value="homework">واجب</option><option value="quiz">كويز</option></select></label>
-              <label>آخر ميعاد<input className="fld" type="datetime-local" value={ed.due_at} onChange={(e) => setEd({ ...ed, due_at: e.target.value })} /></label>
-              <p className="muted small">الأسئلة مش بتتعدل بعد النشر (عشان ما تبوّظش التصحيح). لو محتاج تغيّرها، احذف الواجب وانشر واحد جديد.</p>
-              <Notice err={msg} />
-              <button className="btn-primary">حفظ</button>
+        {copy && (
+          <Modal key="cp" title="نسخ الواجب لمجموعة" onClose={() => setCopy(null)}>
+            <form className="form" onSubmit={doCopy}>
+              <label>المجموعة<select className="fld" required value={copy.group_id} onChange={(e) => setCopy({ ...copy, group_id: e.target.value })}>{d.groups.map((g) => <option key={g.id} value={g.id}>{gname(g.id)}</option>)}</select></label>
+              <label>العنوان<input className="fld" required value={copy.title} onChange={(e) => setCopy({ ...copy, title: e.target.value })} /></label>
+              <p className="muted small">النسخة بتتعمل من غير ميعاد تسليم. تقدر تعدّلها بعدين.</p>
+              <button className="btn-primary">نسخ</button>
             </form>
+          </Modal>
+        )}
+        {pv && (
+          <Modal key="pv" title={`معاينة: ${pv.title}`} onClose={() => setPv(null)}>
+            <div className="modal-wide"><Solve preview={pv} assignment={{ id: pv.id, title: pv.title }} onBack={() => setPv(null)} /></div>
           </Modal>
         )}
       </AnimatePresence>
@@ -637,45 +630,21 @@ function Assignments({ uid, role }) {
   )
 }
 
-function Submissions({ assignment, onBack }) {
-  const [rows, load, err] = useLoad(() => q(supabase.from('submissions').select('id, answers, auto_score, final_score, submitted_at, profiles:student_id(full_name)').eq('assignment_id', assignment.id).order('submitted_at')), [assignment.id])
-  const [msg, setMsg] = useState('')
-  const qsList = assignment.questions ?? []
-  async function saveScore(id, v) {
-    setMsg('')
-    try { await q(supabase.from('submissions').update({ final_score: v === '' ? null : Number(v), graded_by: (await supabase.auth.getUser()).data.user.id }).eq('id', id)); await load() } catch (e) { setMsg(e.message) }
-  }
+function Submissions({ assignment, uid, onBack }) {
+  const [d, load, err] = useLoad(async () => {
+    const [rows, keys] = await Promise.all([
+      q(supabase.from('submissions').select('id, assignment_id, student_id, answers, auto_score, final_score, feedback, submitted_at, graded_at, profiles:student_id(full_name)').eq('assignment_id', assignment.id).order('submitted_at')),
+      q(supabase.from('assignment_keys').select('answers').eq('assignment_id', assignment.id)),
+    ])
+    return { rows: rows.map((r) => ({ ...r, assignments: { title: assignment.title, questions: assignment.questions } })), keys: keys[0]?.answers }
+  }, [assignment.id])
   return (
     <section className="card">
-      <div className="card-head"><h2>تسليمات: {assignment.title}</h2><button className="btn-link" onClick={onBack}>← رجوع</button></div>
-      <Notice err={err || msg} />
-      {rows && rows.length === 0 && <p className="muted">لسه محدش سلّم.</p>}
-      {rows && rows.map((r) => (
-        <div className="qbox" key={r.id}>
-          <div className="card-head">
-            <span className="strong">{r.profiles?.full_name}</span>
-            <span className="muted small">اتسلّم {fmtDT(r.submitted_at)} · التصحيح التلقائي: {r.auto_score == null ? '—' : `${num(r.auto_score)}٪`}</span>
-          </div>
-          <ol className="ans">
-            {qsList.map((x, i) => (
-              <li key={i}><span className="muted">{x.q}</span><br /><b>{x.type === 'text' ? (r.answers?.[i] || '—') : (x.options?.[r.answers?.[i]] ?? '—')}</b></li>
-            ))}
-          </ol>
-          <ScoreField value={r.final_score} onSave={(v) => saveScore(r.id, v)} />
-        </div>
-      ))}
+      <div className="card-head"><h2>تسليمات: {assignment.title}</h2><button className="btn-link" onClick={onBack}>→ رجوع</button></div>
+      <Notice err={err} />
+      {d && d.rows.length === 0 && <p className="muted">لسه محدش سلّم.</p>}
+      {d && d.rows.map((r) => <GradeCard key={r.id} s={r} keys={d.keys} uid={uid} onDone={load} />)}
     </section>
-  )
-}
-
-function ScoreField({ value, onSave }) {
-  const [v, setV] = useState(value == null ? '' : String(value))
-  const changed = v !== (value == null ? '' : String(value))
-  return (
-    <div className="inline">
-      <label className="check">الدرجة النهائية (٪) <input className="fld narrow" type="number" min="0" max="100" value={v} onChange={(e) => setV(e.target.value)} /></label>
-      {changed && <button className="btn-outline" onClick={() => onSave(v)}>حفظ</button>}
-    </div>
   )
 }
 
