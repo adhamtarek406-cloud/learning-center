@@ -783,26 +783,36 @@ function ImportStudents() {
 }
 
 /* ---------------- الغلاف ---------------- */
-const TABS = {
+// الأقسام مترتبة حسب الاستخدام اليومي: المتابعة الأول، بعدين التدريس، الطلبة، الفلوس، وآخر حاجة الإعدادات
+const NAV = {
   manager: [
-    ['overview', 'نظرة عامة'], ['people', 'الحسابات'], ['import', 'استيراد طلبة'], ['content', 'المحتوى'],
-    ['mygroups', 'المجموعات والطلاب'], ['sessions', 'الحصص'], ['attendance', 'الحضور'], ['grading', 'التصحيح'],
-    ['assign', 'الواجبات'], ['activities', 'أنشطة تفاعلية'], ['announce', 'الإعلانات'], ['messages', 'الرسايل'], ['absences', 'الغياب'],
-    ['requests', 'طلبات الاشتراك'], ['subs', 'الاشتراكات'], ['mypage', 'صفحات المدرسين'], ['games', 'الألعاب'], ['log', 'السجل'],
+    ['today', 'الرئيسية', [['overview', 'نظرة عامة'], ['messages', 'الرسايل'], ['absences', 'الغياب']]],
+    ['teach', 'التدريس', [['sessions', 'الحصص'], ['attendance', 'الحضور'], ['assign', 'الواجبات'], ['grading', 'التصحيح'], ['activities', 'أنشطة تفاعلية'], ['announce', 'الإعلانات']]],
+    ['students', 'الطلبة', [['mygroups', 'المجموعات والطلاب'], ['people', 'الحسابات'], ['import', 'استيراد طلبة']]],
+    ['money', 'الاشتراكات', [['requests', 'طلبات الاشتراك'], ['subs', 'الاشتراكات والمدفوعات']]],
+    ['setup', 'الإعدادات', [['content', 'المواد والمجموعات'], ['mypage', 'صفحات المدرسين'], ['games', 'الألعاب'], ['log', 'سجل النشاط']]],
   ],
   teacher: [
-    ['mygroups', 'مجموعاتي'], ['sessions', 'الحصص'], ['attendance', 'الحضور'], ['grading', 'التصحيح'],
-    ['assign', 'الواجبات'], ['activities', 'أنشطة تفاعلية'], ['announce', 'الإعلانات'], ['messages', 'الرسايل'], ['absences', 'الغياب'], ['mypage', 'صفحتي'],
+    ['today', 'الرئيسية', [['mygroups', 'مجموعاتي'], ['messages', 'الرسايل'], ['absences', 'الغياب']]],
+    ['teach', 'التدريس', [['sessions', 'الحصص'], ['attendance', 'الحضور'], ['assign', 'الواجبات'], ['grading', 'التصحيح'], ['activities', 'أنشطة تفاعلية'], ['announce', 'الإعلانات']]],
+    ['page', 'صفحتي', [['mypage', 'صفحتي']]],
   ],
   assistant: [
-    ['overview', 'نظرة عامة'], ['attendance', 'الحضور'], ['grading', 'التصحيح'], ['absences', 'الغياب'],
-    ['messages', 'الرسايل'], ['mygroups', 'المجموعات والطلاب'],
+    ['overview', 'نظرة عامة', [['overview', 'نظرة عامة']]],
+    ['attendance', 'الحضور', [['attendance', 'الحضور']]],
+    ['grading', 'التصحيح', [['grading', 'التصحيح']]],
+    ['absences', 'الغياب', [['absences', 'الغياب']]],
+    ['messages', 'الرسايل', [['messages', 'الرسايل']]],
+    ['mygroups', 'الطلبة', [['mygroups', 'المجموعات والطلاب']]],
   ],
 }
+const withBadge = (l, n) => (n ? `${l} (${num(n)})` : l)
 
 export default function Admin({ session, role }) {
   const uid = session.user.id
-  const [tab, setTab] = useState(TABS[role][0][0])
+  const nav = NAV[role]
+  const [tab, setTab] = useState(nav[0][2][0][0])
+  const [lastIn, setLastIn] = useState({})
   const [unread, setUnread] = useState(0)
   const [pendingReq, setPendingReq] = useState(0)
   useEffect(() => {
@@ -810,7 +820,11 @@ export default function Admin({ session, role }) {
     if (role === 'manager') supabase.from('enroll_requests').select('id', { count: 'exact', head: true }).eq('status', 'pending').then(({ count }) => setPendingReq(count ?? 0))
   }, [tab, role])
   const badge = { messages: unread, requests: pendingReq }
-  const tabs = TABS[role].map(([k, l]) => [k, badge[k] ? `${l} (${num(badge[k])})` : l])
+  const group = nav.find((g) => g[2].some(([k]) => k === tab)) ?? nav[0]
+  const groups = nav.map(([g, l, items]) => [g, withBadge(l, items.reduce((s, [k]) => s + (badge[k] ?? 0), 0))])
+  const subs = group[2].map(([k, l]) => [k, withBadge(l, badge[k])])
+  const go = (k) => { setTab(k); setLastIn((m) => ({ ...m, [nav.find((g) => g[2].some(([x]) => x === k))?.[0]]: k })) }
+  const pickGroup = (g) => { const it = nav.find((x) => x[0] === g); go(lastIn[g] ?? it[2][0][0]) }
   const [asStudent, setAsStudent] = useState(false)
   if (asStudent) return (
     <>
@@ -827,7 +841,8 @@ export default function Admin({ session, role }) {
           <button className="btn-link" onClick={() => supabase.auth.signOut()}>تسجيل الخروج</button>
         </div>
       </header>
-      <Tabs items={tabs} value={tab} onChange={setTab} label="أقسام الإدارة" id="admin-tab" />
+      <Tabs items={groups} value={group[0]} onChange={pickGroup} label="أقسام الإدارة" id="admin-group" />
+      {group[2].length > 1 && <Tabs sub items={subs} value={tab} onChange={go} label={group[1]} id="admin-tab" />}
       <main className="admin-main">
         <AnimatePresence mode="wait" initial={false}>
           <motion.div
@@ -837,7 +852,7 @@ export default function Admin({ session, role }) {
             animate={{ opacity: 1, y: 0, transition: { duration: 0.55, ease: EASE } }}
             exit={{ opacity: 0, y: -8, transition: { duration: 0.18, ease: EASE } }}
           >
-            {tab === 'overview' && <Overview role={role} onGo={setTab} />}
+            {tab === 'overview' && <Overview role={role} onGo={go} />}
             {tab === 'content' && <Content />}
             {tab === 'games' && <GamesAdmin />}
             {tab === 'log' && <LogTab />}

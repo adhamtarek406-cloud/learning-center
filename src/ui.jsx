@@ -59,9 +59,9 @@ export function Progress({ pct }) {
 }
 
 /** تابات بمؤشر بيتنقل بين التابات بحركة spring */
-export function Tabs({ items, value, onChange, label, id, flat }) {
+export function Tabs({ items, value, onChange, label, id, flat, sub }) {
   return (
-    <nav className={'tabs' + (flat ? ' flat' : '')} aria-label={label}>
+    <nav className={'tabs' + (flat ? ' flat' : '') + (sub ? ' sub' : '')} aria-label={label}>
       {items.map(([k, l]) => (
         <button key={k} type="button" className={'tab' + (value === k ? ' active' : '')} onClick={() => onChange(k)} aria-current={value === k ? 'page' : undefined}>
           {value === k && <motion.span layoutId={id} className="tab-ind" transition={{ type: 'spring', stiffness: 420, damping: 34 }} />}
