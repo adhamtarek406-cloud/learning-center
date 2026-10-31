@@ -5,8 +5,13 @@ import Student from './Student.jsx'
 import { AnimatePresence, motion } from 'framer-motion'
 import { Tabs, EASE } from './ui.jsx'
 
-import { ROLE_AR, fmtDT, fmtD, num, q, useLoad, Notice } from './adminkit.jsx'
+import { ROLE_AR, fmtDT, fmtD, num, q, useLoad, Notice, Modal, logAct } from './adminkit.jsx'
 import Accounts from './Accounts.jsx'
+import Content from './Content.jsx'
+import GamesAdmin from './GamesAdmin.jsx'
+import Overview, { LogTab } from './Overview.jsx'
+
+const toLocalInput = (iso) => { const x = new Date(iso); x.setMinutes(x.getMinutes() - x.getTimezoneOffset()); return x.toISOString().slice(0, 16) }
 
 /* ---------------- الطلاب والفريق ---------------- */
 function People({ role }) {
@@ -250,6 +255,7 @@ function Sessions() {
   })
   const [msg, setMsg] = useState('')
   const [f, setF] = useState({ group_id: '', starts_at: '', topic: '', live_url: '' })
+  const [ed, setEd] = useState(null)
   if (!d) return <Notice err={err} />
   const gname = (id) => { const g = d.groups.find((x) => x.id === id); return g ? `${g.levels?.subjects?.name ?? ''} ${g.levels?.name ?? ''} · ${g.name}` : '—' }
   async function act(fn, reset) { setMsg(''); try { await fn(); reset?.(); await load() } catch (e) { setMsg(e.message) } }
@@ -280,7 +286,12 @@ function Sessions() {
                   <td>{s.topic}</td>
                   <td><LinkField value={s.live_url} onSave={(v) => act(() => q(supabase.from('sessions').update({ live_url: v || null }).eq('id', s.id)))} /></td>
                   <td><LinkField value={s.recording_url} onSave={(v) => act(() => q(supabase.from('sessions').update({ recording_url: v || null }).eq('id', s.id)))} /></td>
-                  <td><button className="btn-danger" onClick={() => window.confirm('تحذف الحصة دي؟') && act(() => q(supabase.from('sessions').delete().eq('id', s.id)))}>حذف</button></td>
+                  <td>
+                    <div className="inline">
+                      <button className="btn-outline" onClick={() => setEd({ id: s.id, group_id: s.group_id, starts_at: toLocalInput(s.starts_at), topic: s.topic ?? '' })}>تعديل</button>
+                      <button className="btn-danger" onClick={() => window.confirm('تحذف الحصة دي؟') && act(async () => { await q(supabase.from('sessions').delete().eq('id', s.id)); logAct('session_deleted', 'sessions', s.id, { topic: s.topic, at: fmtDT(s.starts_at) }) })}>حذف</button>
+                    </div>
+                  </td>
                 </tr>
               ))}
               {d.sessions.length === 0 && <tr><td colSpan="6" className="muted">مفيش حصص لسه.</td></tr>}
@@ -288,6 +299,19 @@ function Sessions() {
           </table>
         </div>
       </section>
+      <AnimatePresence>
+        {ed && (
+          <Modal key="se" title="تعديل حصة" onClose={() => setEd(null)}>
+            <form className="form" onSubmit={(e) => { e.preventDefault(); act(async () => { await q(supabase.from('sessions').update({ group_id: ed.group_id, starts_at: new Date(ed.starts_at).toISOString(), topic: ed.topic || null }).eq('id', ed.id)); logAct('session_updated', 'sessions', ed.id, { topic: ed.topic }); setEd(null) }) }}>
+              <label>المجموعة<select className="fld" required value={ed.group_id} onChange={(e) => setEd({ ...ed, group_id: e.target.value })}>{d.groups.map((g) => <option key={g.id} value={g.id}>{gname(g.id)}</option>)}</select></label>
+              <label>الميعاد<input className="fld" type="datetime-local" required value={ed.starts_at} onChange={(e) => setEd({ ...ed, starts_at: e.target.value })} /></label>
+              <label>الموضوع<input className="fld" value={ed.topic} onChange={(e) => setEd({ ...ed, topic: e.target.value })} /></label>
+              <Notice err={msg} />
+              <button className="btn-primary">حفظ</button>
+            </form>
+          </Modal>
+        )}
+      </AnimatePresence>
     </>
   )
 }
@@ -500,6 +524,7 @@ function Assignments() {
   const [msg, setMsg] = useState('')
   const [open, setOpen] = useState(null)
   const [f, setF] = useState({ group_id: '', title: '', kind: 'homework', due_at: '' })
+  const [ed, setEd] = useState(null)
   const [qs, setQs] = useState([emptyQ('mcq')])
   if (!d) return <Notice err={err} />
   const gname = (id) => { const g = d.groups.find((x) => x.id === id); return g ? `${g.levels?.subjects?.name ?? ''} ${g.levels?.name ?? ''} · ${g.name}` : '—' }
@@ -578,7 +603,13 @@ function Assignments() {
                   <td>{gname(a.group_id)}</td>
                   <td>{a.due_at ? fmtDT(a.due_at) : '—'}</td>
                   <td>{num(countSubs(a.id))}</td>
-                  <td><button className="btn-outline" onClick={() => setOpen(a)}>التسليمات</button></td>
+                  <td>
+                    <div className="inline">
+                      <button className="btn-outline" onClick={() => setOpen(a)}>التسليمات</button>
+                      <button className="btn-link" onClick={() => setEd({ id: a.id, title: a.title, kind: a.kind, group_id: a.group_id, due_at: a.due_at ? toLocalInput(a.due_at) : '' })}>تعديل</button>
+                      <button className="btn-danger" onClick={() => window.confirm(`حذف "${a.title}" مع ${num(countSubs(a.id))} تسليم؟ مينفعش ترجّعه.`) && (async () => { setMsg(''); try { await q(supabase.from('assignments').delete().eq('id', a.id)); logAct('assignment_deleted', 'assignments', a.id, { title: a.title }); await load() } catch (e) { setMsg(e.message) } })()}>حذف</button>
+                    </div>
+                  </td>
                 </tr>
               ))}
               {d.items.length === 0 && <tr><td colSpan="6" className="muted">مفيش واجبات لسه.</td></tr>}
@@ -586,6 +617,21 @@ function Assignments() {
           </table>
         </div>
       </section>
+      <AnimatePresence>
+        {ed && (
+          <Modal key="ae" title="تعديل واجب / كويز" onClose={() => setEd(null)}>
+            <form className="form" onSubmit={async (e) => { e.preventDefault(); setMsg(''); try { await q(supabase.from('assignments').update({ title: ed.title, kind: ed.kind, group_id: ed.group_id, due_at: ed.due_at ? new Date(ed.due_at).toISOString() : null }).eq('id', ed.id)); logAct('assignment_updated', 'assignments', ed.id, { title: ed.title }); setEd(null); await load() } catch (e2) { setMsg(e2.message) } }}>
+              <label>العنوان<input className="fld" required value={ed.title} onChange={(e) => setEd({ ...ed, title: e.target.value })} /></label>
+              <label>المجموعة<select className="fld" required value={ed.group_id} onChange={(e) => setEd({ ...ed, group_id: e.target.value })}>{d.groups.map((g) => <option key={g.id} value={g.id}>{gname(g.id)}</option>)}</select></label>
+              <label>النوع<select className="fld" value={ed.kind} onChange={(e) => setEd({ ...ed, kind: e.target.value })}><option value="homework">واجب</option><option value="quiz">كويز</option></select></label>
+              <label>آخر ميعاد<input className="fld" type="datetime-local" value={ed.due_at} onChange={(e) => setEd({ ...ed, due_at: e.target.value })} /></label>
+              <p className="muted small">الأسئلة مش بتتعدل بعد النشر (عشان ما تبوّظش التصحيح). لو محتاج تغيّرها، احذف الواجب وانشر واحد جديد.</p>
+              <Notice err={msg} />
+              <button className="btn-primary">حفظ</button>
+            </form>
+          </Modal>
+        )}
+      </AnimatePresence>
     </>
   )
 }
@@ -760,7 +806,29 @@ function ImportStudents() {
 }
 
 /* ---------------- الغلاف ---------------- */
-const TABS = [
+const TABS_STAFF = [
+  ['overview', 'نظرة عامة'],
+  ['people', 'الحسابات'],
+  ['import', 'استيراد طلبة'],
+  ['groups', 'المجموعات'],
+  ['sessions', 'الحصص'],
+  ['attendance', 'الحضور'],
+  ['assign', 'الواجبات'],
+  ['subs', 'الاشتراكات'],
+]
+const TABS_MANAGER = [
+  ['overview', 'نظرة عامة'],
+  ['people', 'الحسابات'],
+  ['import', 'استيراد طلبة'],
+  ['content', 'المحتوى'],
+  ['sessions', 'الحصص'],
+  ['attendance', 'الحضور'],
+  ['assign', 'الواجبات'],
+  ['subs', 'الاشتراكات'],
+  ['games', 'الألعاب'],
+  ['log', 'السجل'],
+]
+const TABS_OLD = [
   ['people', 'الحسابات'],
   ['import', 'استيراد طلبة'],
   ['groups', 'المجموعات'],
@@ -771,7 +839,7 @@ const TABS = [
 ]
 
 export default function Admin({ session, role }) {
-  const [tab, setTab] = useState('people')
+  const [tab, setTab] = useState('overview')
   const [asStudent, setAsStudent] = useState(false)
   if (asStudent) return (
     <>
@@ -788,7 +856,7 @@ export default function Admin({ session, role }) {
           <button className="btn-link" onClick={() => supabase.auth.signOut()}>تسجيل الخروج</button>
         </div>
       </header>
-      <Tabs items={TABS} value={tab} onChange={setTab} label="أقسام الإدارة" id="admin-tab" />
+      <Tabs items={role === 'manager' ? TABS_MANAGER : TABS_STAFF} value={tab} onChange={setTab} label="أقسام الإدارة" id="admin-tab" />
       <main className="admin-main">
         <AnimatePresence mode="wait" initial={false}>
           <motion.div
@@ -798,6 +866,10 @@ export default function Admin({ session, role }) {
             animate={{ opacity: 1, y: 0, transition: { duration: 0.55, ease: EASE } }}
             exit={{ opacity: 0, y: -8, transition: { duration: 0.18, ease: EASE } }}
           >
+            {tab === 'overview' && <Overview role={role} onGo={setTab} />}
+            {tab === 'content' && <Content />}
+            {tab === 'games' && <GamesAdmin />}
+            {tab === 'log' && <LogTab />}
             {tab === 'people' && (role === 'manager' ? <Accounts uid={session.user.id} /> : <People role={role} />)}
             {tab === 'import' && <ImportStudents />}
             {tab === 'groups' && <Groups role={role} />}

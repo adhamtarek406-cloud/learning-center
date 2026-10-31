@@ -54,7 +54,7 @@ export default function Student({ session }) {
       const nowIso = new Date().toISOString()
       const startOfDay = new Date(new Date().setHours(0, 0, 0, 0)).toISOString()
       const SEL = 'id, starts_at, topic, live_url, recording_url, groups(name, schedule, levels(name, subjects(name)))'
-      const [prof, sess, assigns, subs, games, scores, todayScores, mySubs, upc, past, overall] = await Promise.all([
+      const [prof, sess, assigns, subs, games, scores, todayScores, mySubs, upc, past, overall, myBadges] = await Promise.all([
         supabase.from('profiles').select('*').eq('id', uid).single(),
         supabase
           .from('sessions')
@@ -64,22 +64,24 @@ export default function Student({ session }) {
           .limit(1),
         supabase.from('assignments').select('id, title, kind, due_at').order('due_at'),
         supabase.from('subscriptions').select('id, status, starts_on, renews_on, plans(name)').eq('student_id', uid).order('starts_on', { ascending: false }),
-        supabase.from('games').select('id, name, description').eq('active', true).limit(1),
-        supabase.from('game_scores').select('score, played_at').eq('student_id', uid),
+        supabase.from('games').select('id, name, description, max_daily_tries, seconds, config').eq('active', true).order('name'),
+        supabase.from('game_scores').select('game_id, score, played_at').eq('student_id', uid),
         supabase.from('game_scores').select('id', { count: 'exact', head: true }).eq('student_id', uid).gte('played_at', startOfDay),
         supabase.from('submissions').select('assignment_id, auto_score, final_score, submitted_at, assignments(title, kind)').eq('student_id', uid).order('submitted_at', { ascending: false }),
         supabase.from('sessions').select(SEL).gte('starts_at', nowIso).order('starts_at').limit(30),
         supabase.from('sessions').select(SEL).lt('starts_at', nowIso).order('starts_at', { ascending: false }).limit(10),
         supabase.rpc('leaderboard'),
+        supabase.from('student_badges').select('awarded_at, badges(name, rule)').eq('student_id', uid).order('awarded_at', { ascending: false }),
       ])
       const bad = [prof, sess, assigns, subs, games, scores].find((r) => r.error)
       if (bad) { if (alive) setErr(bad.error.message); return }
-      const game = games.data?.[0] ?? null
-      let board = []
-      if (game) {
-        const lb = await supabase.rpc('leaderboard', { p_game: game.id })
-        board = lb.data ?? []
-      }
+      const gl = games.data ?? []
+      const game = gl[0] ?? null
+      const boards = {}
+      await Promise.all(gl.map(async (g) => { const lb = await supabase.rpc('leaderboard', { p_game: g.id }); boards[g.id] = lb.data ?? [] }))
+      const board = game ? boards[game.id] ?? [] : []
+      const playedMap = {}
+      ;(scores.data ?? []).forEach((r) => { if (r.played_at >= startOfDay) playedMap[r.game_id] = (playedMap[r.game_id] ?? 0) + 1 })
       const done = new Set((mySubs.data ?? []).map((s) => s.assignment_id))
       if (alive)
         setD({
@@ -94,9 +96,13 @@ export default function Student({ session }) {
           scoreRows: scores.data ?? [],
           allResults: mySubs.data ?? [],
           game,
+          games: gl,
+          boards,
+          playedMap,
+          badges: myBadges.data ?? [],
           board,
           points: (scores.data ?? []).reduce((s, r) => s + r.score, 0),
-          playedToday: todayScores.count ?? 0,
+          playedToday: game ? playedMap[game.id] ?? 0 : 0,
           results: (mySubs.data ?? []).slice(0, 4),
         })
     })()
@@ -106,14 +112,14 @@ export default function Student({ session }) {
   if (err) return <div className="center-msg">حصلت مشكلة في تحميل البيانات: {err}</div>
   if (!d) return <div className="center-msg">جاري التحميل...</div>
 
-  const { profile, session: next, assignments, sub, game, board, points, playedToday, results, subs, upcoming, past, overall, scoreRows, allResults } = d
+  const { profile, session: next, assignments, sub, game, board, points, playedToday, results, subs, upcoming, past, overall, scoreRows, allResults, games: gameList, boards, playedMap, badges } = d
   const back = () => { setView(null); setTick((t) => t + 1) }
   if (view?.type === 'assignment') return <Solve assignment={view.a} onBack={back} />
-  if (view?.type === 'game') return <Game game={game} playedToday={playedToday} onBack={back} />
+  if (view?.type === 'game') { const g = view.game ?? game; return <Game game={g} playedToday={playedMap[g.id] ?? 0} onBack={back} /> }
   const level = next?.groups?.levels
   const myFirst = profile.first_name
   const myRank = board.findIndex((r) => r.first_name === myFirst)
-  const MAX_TRIES = 5
+  const MAX_TRIES = game?.max_daily_tries ?? 5
 
   return (
     <div className="shell">
@@ -279,7 +285,7 @@ export default function Student({ session }) {
         </>)}
 
         {sec !== 'home' && (
-          <Pages key={sec} sec={sec} {...{ myFirst, upcoming, past, assignments, allResults, game, board, overall, scoreRows, points, playedToday, subs, MAX_TRIES }} onAssign={(a) => setView({ type: 'assignment', a })} onPlay={() => setView({ type: 'game' })} />
+          <Pages key={sec} sec={sec} {...{ myFirst, upcoming, past, assignments, allResults, gameList, boards, playedMap, badges, overall, scoreRows, points, subs }} onAssign={(a) => setView({ type: 'assignment', a })} onPlay={(g) => setView({ type: 'game', game: g })} />
         )}
       </main>
     </div>
@@ -306,8 +312,8 @@ function BoardList({ rows, myFirst }) {
 
 const STATUS_AR = { active: 'ساري', paused: 'موقوف', expired: 'منتهي', cancelled: 'ملغي' }
 
-function Pages({ sec, myFirst, upcoming, past, assignments, allResults, game, board, overall, scoreRows, points, playedToday, subs, MAX_TRIES, onAssign, onPlay }) {
-  const [bt, setBt] = useState('game')
+function Pages({ sec, myFirst, upcoming, past, assignments, allResults, gameList, boards, playedMap, badges, overall, scoreRows, points, subs, onAssign, onPlay }) {
+  const [bt, setBt] = useState(gameList[0]?.id ?? 'all')
   const lv = (x) => `${x.groups?.levels?.subjects?.name ?? ''} · ${x.groups?.levels?.name ?? ''}`
   const wrap = (children) => (
     <motion.div className="pane" variants={container} initial="hidden" animate="visible">{children}</motion.div>
@@ -377,28 +383,42 @@ function Pages({ sec, myFirst, upcoming, past, assignments, allResults, game, bo
 
   if (sec === 'games') {
     const best = scoreRows.reduce((m, r) => Math.max(m, r.score), 0)
+    const todayTotal = Object.values(playedMap).reduce((x, y) => x + y, 0)
     return wrap(
       <>
         <motion.div variants={item} className="stats">
           <div className="stat"><b><CountUp value={points} /></b><span>مجموع نقاطك</span></div>
           <div className="stat"><b><CountUp value={best} /></b><span>أعلى نتيجة ليك</span></div>
           <div className="stat"><b><CountUp value={scoreRows.length} /></b><span>مرات اللعب</span></div>
-          <div className="stat"><b><CountUp value={playedToday} /> / {fmt(MAX_TRIES)}</b><span>محاولات النهاردة</span></div>
+          <div className="stat"><b><CountUp value={todayTotal} /></b><span>محاولات النهاردة</span></div>
         </motion.div>
         <motion.section variants={item} className="card">
           <h2>الألعاب المتاحة</h2>
-          {game ? (
-            <div className="challenge">
-              <svg width="72" height="72" viewBox="0 0 72 72" role="img" aria-label="أيقونة اللعبة"><rect width="72" height="72" rx="20" fill="#7A66E8" /><path d="M20 26h32M20 36h22M20 46h28" stroke="#fff" strokeWidth="5" strokeLinecap="round" /><circle cx="52" cy="46" r="7" fill="#FFC24B" /></svg>
-              <div className="grow">
-                <div className="strong">{game.name}</div>
-                <div className="muted">{game.description}</div>
-                <Progress pct={(playedToday / MAX_TRIES) * 100} />
+          {gameList.length ? gameList.map((g) => {
+            const played = playedMap[g.id] ?? 0
+            const max = g.max_daily_tries ?? 5
+            return (
+              <div className="challenge" key={g.id}>
+                <svg width="72" height="72" viewBox="0 0 72 72" role="img" aria-label="أيقونة اللعبة"><rect width="72" height="72" rx="20" fill="#7A66E8" /><path d="M20 26h32M20 36h22M20 46h28" stroke="#fff" strokeWidth="5" strokeLinecap="round" /><circle cx="52" cy="46" r="7" fill="#FFC24B" /></svg>
+                <div className="grow">
+                  <div className="strong">{g.name}</div>
+                  <div className="muted">{g.description}</div>
+                  <Progress pct={(played / max) * 100} />
+                  <div className="muted small">{fmt(played)} من {fmt(max)} محاولات النهاردة</div>
+                </div>
+                <button className="btn-primary" disabled={played >= max} onClick={() => onPlay(g)}>{played >= max ? 'خلصت محاولات النهاردة' : <>العب<GoIcon /></>}</button>
               </div>
-              <button className="btn-primary" disabled={playedToday >= MAX_TRIES} onClick={onPlay}>{playedToday >= MAX_TRIES ? 'خلصت محاولات النهاردة' : <>العب<GoIcon /></>}</button>
+            )
+          }) : <p className="muted">مفيش تحديات متاحة حاليًا.</p>}
+        </motion.section>
+        <motion.section variants={item} className="card">
+          <h2>شاراتي</h2>
+          {badges.length ? badges.map((b, i) => (
+            <div className="row" key={i}>
+              <div className="grow"><div className="strong">{b.badges?.name}</div>{b.badges?.rule && <div className="muted small">{b.badges.rule}</div>}</div>
+              <span className="pill gold">{dateFmt.format(new Date(b.awarded_at))}</span>
             </div>
-          ) : <p className="muted">مفيش تحديات متاحة حاليًا.</p>}
-          <p className="muted small">ألعاب جديدة هتتضاف قريب.</p>
+          )) : <p className="muted">لسه معاكش شارات. العب وذاكر وهتاخد شارات من المدرس.</p>}
         </motion.section>
       </>
     )
@@ -407,8 +427,8 @@ function Pages({ sec, myFirst, upcoming, past, assignments, allResults, game, bo
   if (sec === 'board')
     return wrap(
       <motion.section variants={item} className="card">
-        <Tabs flat id="board-tab" label="نوع الترتيب" items={[['game', game ? game.name : 'اللعبة'], ['all', 'الترتيب الإجمالي']]} value={bt} onChange={setBt} />
-        <BoardList rows={bt === 'game' ? board : overall} myFirst={myFirst} />
+        <Tabs flat id="board-tab" label="نوع الترتيب" items={[...gameList.map((g) => [g.id, g.name]), ['all', 'الترتيب الإجمالي']]} value={bt} onChange={setBt} />
+        <BoardList rows={bt === 'all' ? overall : boards[bt] ?? []} myFirst={myFirst} />
         <p className="muted small">الترتيب بيعرض الاسم الأول بس، وولي الأمر يقدر يخفي اسم ابنه.</p>
       </motion.section>
     )

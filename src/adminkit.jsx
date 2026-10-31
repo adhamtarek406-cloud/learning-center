@@ -1,4 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
+import { motion } from 'framer-motion'
+import { supabase } from './supabase.js'
+import { EASE } from './ui.jsx'
 
 export const ROLE_AR = { manager: 'مدير', teacher: 'مدرس', assistant: 'مساعد', student: 'طالب', parent: 'ولي أمر' }
 export const fmtDT = (iso) => new Intl.DateTimeFormat('ar-EG', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(iso))
@@ -21,4 +24,35 @@ export function useLoad(fn, deps = []) {
 
 export function Notice({ err }) {
   return err ? <p className="msg" role="alert">حصلت مشكلة: {err}</p> : null
+}
+
+export const logAct = (action, table, target, details) => supabase.rpc('log_action', { p_action: action, p_table: table, p_target: target ?? null, p_details: details ?? null })
+
+export function Modal({ title, onClose, children }) {
+  useEffect(() => {
+    const h = (e) => e.key === 'Escape' && onClose()
+    window.addEventListener('keydown', h)
+    return () => window.removeEventListener('keydown', h)
+  }, [onClose])
+  return (
+    <motion.div className="modal-back" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
+      <motion.div className="modal card" role="dialog" aria-modal="true" aria-label={title} initial={{ opacity: 0, y: 28, scale: 0.97 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 14 }} transition={{ duration: 0.5, ease: EASE }}>
+        <div className="card-head"><h2>{title}</h2><button type="button" className="btn-link" onClick={onClose}>إغلاق</button></div>
+        {children}
+      </motion.div>
+    </motion.div>
+  )
+}
+
+/** حقل نص بيظهر زرار "حفظ" لما القيمة تتغير */
+export function Editable({ value, onSave, type = 'text', width, label }) {
+  const [v, setV] = useState(value ?? '')
+  useEffect(() => { setV(value ?? '') }, [value])
+  const changed = String(v) !== String(value ?? '')
+  return (
+    <div className="inline" style={{ flexWrap: 'nowrap' }}>
+      <input className="fld" aria-label={label} type={type} value={v} style={width ? { width } : undefined} onChange={(e) => setV(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && changed && onSave(v)} />
+      {changed && <button type="button" className="btn-outline" onClick={() => onSave(v)}>حفظ</button>}
+    </div>
+  )
 }

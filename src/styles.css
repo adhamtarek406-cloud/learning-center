@@ -186,3 +186,14 @@ tr.off td { opacity: .6; }
 .modal .form label { min-width: 0; }
 .modal .fld { width: 100%; }
 .card-head .tabs.flat { max-width: 100%; }
+
+/* ===== الإحصائيات والأدمن ===== */
+.stats-8 { grid-template-columns: repeat(4, 1fr); }
+.sub-h { margin: 8px 0 0; font-size: 17px; font-weight: 800; }
+.qbox.off { opacity: .65; }
+.bars { display: flex; align-items: flex-end; gap: 6px; height: 150px; padding-top: 8px; }
+.bar-col { flex: 1; min-width: 0; height: 100%; display: flex; flex-direction: column; justify-content: flex-end; align-items: stretch; gap: 4px; text-align: center; }
+.bar-fill { width: 100%; border-radius: 8px 8px 4px 4px; background: linear-gradient(180deg, var(--brand2), var(--brand)); }
+.bar-n { font-size: 11px; font-weight: 700; color: var(--ink2); min-height: 14px; }
+.bar-l { font-size: 10px; color: var(--ink2); min-height: 12px; white-space: nowrap; }
+@media (max-width: 860px) { .stats-8 { grid-template-columns: 1fr 1fr; } }
