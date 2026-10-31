@@ -286,7 +286,7 @@ function LinkField({ value, onSave }) {
 function Attendance() {
   const [d, , err] = useLoad(async () => {
     const [sessions, groups] = await Promise.all([
-      q(supabase.from('sessions').select('id, group_id, starts_at, topic').lte('starts_at', new Date(Date.now() + 86400000).toISOString()).order('starts_at', { ascending: false }).limit(30)),
+      q(supabase.from('sessions').select('id, group_id, starts_at, topic').lte('starts_at', new Date(Date.now() + 7 * 86400000).toISOString()).order('starts_at', { ascending: false }).limit(30)),
       q(supabase.from('groups').select('id, name, levels(name, subjects(name))')),
     ])
     return { sessions, groups }
@@ -464,12 +464,160 @@ function PriceField({ value, onSave }) {
   )
 }
 
+/* ---------------- الواجبات والكويزات ---------------- */
+const emptyQ = (type) => ({ type, q: '', options: ['', '', '', ''], key: 0 })
+
+function Assignments() {
+  const [d, load, err] = useLoad(async () => {
+    const [groups, items, subs] = await Promise.all([
+      q(supabase.from('groups').select('id, name, levels(name, subjects(name))').order('name')),
+      q(supabase.from('assignments').select('id, title, kind, due_at, group_id, questions').order('created_at', { ascending: false }).limit(60)),
+      q(supabase.from('submissions').select('assignment_id')),
+    ])
+    return { groups, items, subs }
+  })
+  const [msg, setMsg] = useState('')
+  const [open, setOpen] = useState(null)
+  const [f, setF] = useState({ group_id: '', title: '', kind: 'homework', due_at: '' })
+  const [qs, setQs] = useState([emptyQ('mcq')])
+  if (!d) return <Notice err={err} />
+  const gname = (id) => { const g = d.groups.find((x) => x.id === id); return g ? `${g.levels?.subjects?.name ?? ''} ${g.levels?.name ?? ''} · ${g.name}` : '—' }
+  const countSubs = (id) => d.subs.filter((s) => s.assignment_id === id).length
+
+  const validQs = qs.every((x) => x.q.trim() && (x.type === 'text' || x.options.every((o) => o.trim())))
+
+  async function create(e) {
+    e.preventDefault()
+    setMsg('')
+    try {
+      const questions = qs.map((x) => (x.type === 'text' ? { type: 'text', q: x.q.trim() } : { type: 'mcq', q: x.q.trim(), options: x.options.map((o) => o.trim()) }))
+      const keys = qs.map((x) => (x.type === 'text' ? null : Number(x.key)))
+      const [a] = await q(supabase.from('assignments').insert({ group_id: f.group_id, title: f.title, kind: f.kind, due_at: f.due_at ? new Date(f.due_at).toISOString() : null, questions }).select('id'))
+      await q(supabase.from('assignment_keys').insert({ assignment_id: a.id, answers: keys }))
+      setF({ group_id: '', title: '', kind: 'homework', due_at: '' })
+      setQs([emptyQ('mcq')])
+      await load()
+    } catch (e2) { setMsg(e2.message) }
+  }
+
+  const upd = (i, patch) => setQs(qs.map((x, j) => (j === i ? { ...x, ...patch } : x)))
+
+  if (open) return <Submissions assignment={open} onBack={() => { setOpen(null); load() }} />
+
+  return (
+    <>
+      <Notice err={msg} />
+      <section className="card">
+        <h2>واجب أو كويز جديد</h2>
+        <form onSubmit={create} className="stack">
+          <div className="form">
+            <label>المجموعة<select className="fld" required value={f.group_id} onChange={(e) => setF({ ...f, group_id: e.target.value })}><option value="">اختار...</option>{d.groups.map((g) => <option key={g.id} value={g.id}>{gname(g.id)}</option>)}</select></label>
+            <label>العنوان<input className="fld" required value={f.title} onChange={(e) => setF({ ...f, title: e.target.value })} /></label>
+            <label>النوع<select className="fld" value={f.kind} onChange={(e) => setF({ ...f, kind: e.target.value })}><option value="homework">واجب</option><option value="quiz">كويز</option></select></label>
+            <label>آخر ميعاد<input className="fld" type="datetime-local" value={f.due_at} onChange={(e) => setF({ ...f, due_at: e.target.value })} /></label>
+          </div>
+          {qs.map((x, i) => (
+            <div className="qbox" key={i}>
+              <div className="card-head">
+                <span className="strong">سؤال {num(i + 1)} · {x.type === 'text' ? 'مقالي (تصحيح يدوي)' : 'اختيار من متعدد (تصحيح تلقائي)'}</span>
+                {qs.length > 1 && <button type="button" className="btn-danger" onClick={() => setQs(qs.filter((_, j) => j !== i))}>حذف السؤال</button>}
+              </div>
+              <label className="form-one">نص السؤال<input className="fld" value={x.q} onChange={(e) => upd(i, { q: e.target.value })} /></label>
+              {x.type === 'mcq' && (
+                <div className="opts-edit" role="radiogroup" aria-label="الإجابة الصحيحة">
+                  {x.options.map((o, k) => (
+                    <label className="check" key={k}>
+                      <input type="radio" name={`key${i}`} checked={Number(x.key) === k} onChange={() => upd(i, { key: k })} aria-label={`الاختيار ${k + 1} هو الإجابة الصحيحة`} />
+                      <input className="fld grow" placeholder={`الاختيار ${num(k + 1)}`} value={o} onChange={(e) => upd(i, { options: x.options.map((y, m) => (m === k ? e.target.value : y)) })} />
+                    </label>
+                  ))}
+                  <p className="muted small">الدايرة المحددة جنب الاختيار هي الإجابة الصحيحة.</p>
+                </div>
+              )}
+            </div>
+          ))}
+          <div className="inline">
+            <button type="button" className="btn-outline" onClick={() => setQs([...qs, emptyQ('mcq')])}>+ سؤال اختيار من متعدد</button>
+            <button type="button" className="btn-outline" onClick={() => setQs([...qs, emptyQ('text')])}>+ سؤال مقالي</button>
+          </div>
+          <button className="btn-primary" disabled={!validQs}>نشر للطلبة</button>
+        </form>
+      </section>
+
+      <section className="card">
+        <h2>الواجبات والكويزات</h2>
+        <div className="tbl-wrap">
+          <table>
+            <thead><tr><th>العنوان</th><th>النوع</th><th>المجموعة</th><th>آخر ميعاد</th><th>التسليمات</th><th></th></tr></thead>
+            <tbody>
+              {d.items.map((a) => (
+                <tr key={a.id}>
+                  <td className="strong">{a.title}</td>
+                  <td>{a.kind === 'quiz' ? 'كويز' : 'واجب'}</td>
+                  <td>{gname(a.group_id)}</td>
+                  <td>{a.due_at ? fmtDT(a.due_at) : '—'}</td>
+                  <td>{num(countSubs(a.id))}</td>
+                  <td><button className="btn-outline" onClick={() => setOpen(a)}>التسليمات</button></td>
+                </tr>
+              ))}
+              {d.items.length === 0 && <tr><td colSpan="6" className="muted">مفيش واجبات لسه.</td></tr>}
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </>
+  )
+}
+
+function Submissions({ assignment, onBack }) {
+  const [rows, load, err] = useLoad(() => q(supabase.from('submissions').select('id, answers, auto_score, final_score, submitted_at, profiles:student_id(full_name)').eq('assignment_id', assignment.id).order('submitted_at')), [assignment.id])
+  const [msg, setMsg] = useState('')
+  const qsList = assignment.questions ?? []
+  async function saveScore(id, v) {
+    setMsg('')
+    try { await q(supabase.from('submissions').update({ final_score: v === '' ? null : Number(v), graded_by: (await supabase.auth.getUser()).data.user.id }).eq('id', id)); await load() } catch (e) { setMsg(e.message) }
+  }
+  return (
+    <section className="card">
+      <div className="card-head"><h2>تسليمات: {assignment.title}</h2><button className="btn-link" onClick={onBack}>← رجوع</button></div>
+      <Notice err={err || msg} />
+      {rows && rows.length === 0 && <p className="muted">لسه محدش سلّم.</p>}
+      {rows && rows.map((r) => (
+        <div className="qbox" key={r.id}>
+          <div className="card-head">
+            <span className="strong">{r.profiles?.full_name}</span>
+            <span className="muted small">اتسلّم {fmtDT(r.submitted_at)} · التصحيح التلقائي: {r.auto_score == null ? '—' : `${num(r.auto_score)}٪`}</span>
+          </div>
+          <ol className="ans">
+            {qsList.map((x, i) => (
+              <li key={i}><span className="muted">{x.q}</span><br /><b>{x.type === 'text' ? (r.answers?.[i] || '—') : (x.options?.[r.answers?.[i]] ?? '—')}</b></li>
+            ))}
+          </ol>
+          <ScoreField value={r.final_score} onSave={(v) => saveScore(r.id, v)} />
+        </div>
+      ))}
+    </section>
+  )
+}
+
+function ScoreField({ value, onSave }) {
+  const [v, setV] = useState(value == null ? '' : String(value))
+  const changed = v !== (value == null ? '' : String(value))
+  return (
+    <div className="inline">
+      <label className="check">الدرجة النهائية (٪) <input className="fld narrow" type="number" min="0" max="100" value={v} onChange={(e) => setV(e.target.value)} /></label>
+      {changed && <button className="btn-outline" onClick={() => onSave(v)}>حفظ</button>}
+    </div>
+  )
+}
+
 /* ---------------- الغلاف ---------------- */
 const TABS = [
   ['people', 'الطلاب والفريق'],
   ['groups', 'المجموعات'],
   ['sessions', 'الحصص'],
   ['attendance', 'الحضور'],
+  ['assign', 'الواجبات'],
   ['subs', 'الاشتراكات'],
 ]
 
@@ -501,6 +649,7 @@ export default function Admin({ session, role }) {
         {tab === 'groups' && <Groups role={role} />}
         {tab === 'sessions' && <Sessions />}
         {tab === 'attendance' && <Attendance />}
+        {tab === 'assign' && <Assignments />}
         {tab === 'subs' && <Subscriptions role={role} />}
       </main>
     </div>

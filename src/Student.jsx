@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
 import { supabase } from './supabase.js'
 import Logo from './Logo.jsx'
+import Solve from './Solve.jsx'
+import Game from './Game.jsx'
 
 const fmt = (n) => Number(n ?? 0).toLocaleString('ar-EG')
 const dayName = new Intl.DateTimeFormat('ar-EG', { weekday: 'long' })
@@ -40,6 +42,8 @@ export default function Student({ session }) {
   const uid = session.user.id
   const [d, setD] = useState(null)
   const [err, setErr] = useState('')
+  const [view, setView] = useState(null)
+  const [tick, setTick] = useState(0)
 
   useEffect(() => {
     let alive = true
@@ -59,7 +63,7 @@ export default function Student({ session }) {
         supabase.from('games').select('id, name, description').eq('active', true).limit(1),
         supabase.from('game_scores').select('score').eq('student_id', uid),
         supabase.from('game_scores').select('id', { count: 'exact', head: true }).eq('student_id', uid).gte('played_at', startOfDay),
-        supabase.from('submissions').select('assignment_id').eq('student_id', uid),
+        supabase.from('submissions').select('assignment_id, auto_score, final_score, submitted_at, assignments(title)').eq('student_id', uid).order('submitted_at', { ascending: false }),
       ])
       const bad = [prof, sess, assigns, subs, games, scores].find((r) => r.error)
       if (bad) { if (alive) setErr(bad.error.message); return }
@@ -80,15 +84,19 @@ export default function Student({ session }) {
           board,
           points: (scores.data ?? []).reduce((s, r) => s + r.score, 0),
           playedToday: todayScores.count ?? 0,
+          results: (mySubs.data ?? []).slice(0, 4),
         })
     })()
     return () => { alive = false }
-  }, [uid])
+  }, [uid, tick])
 
   if (err) return <div className="center-msg">حصلت مشكلة في تحميل البيانات: {err}</div>
   if (!d) return <div className="center-msg">جاري التحميل...</div>
 
-  const { profile, session: next, assignments, sub, game, board, points, playedToday } = d
+  const { profile, session: next, assignments, sub, game, board, points, playedToday, results } = d
+  const back = () => { setView(null); setTick((t) => t + 1) }
+  if (view?.type === 'assignment') return <Solve assignment={view.a} onBack={back} />
+  if (view?.type === 'game') return <Game game={game} playedToday={playedToday} onBack={back} />
   const level = next?.groups?.levels
   const myFirst = profile.first_name
   const myRank = board.findIndex((r) => r.first_name === myFirst)
@@ -169,7 +177,7 @@ export default function Student({ session }) {
                     <div className="muted small">{fmt(playedToday)} من {fmt(MAX_TRIES)} محاولات النهاردة</div>
                   </div>
                 </div>
-                <button className="btn-primary" disabled title="اللعبة نفسها هتتضاف في الخطوة الجاية">العب دلوقتي (قريبًا)</button>
+                <button className="btn-primary" disabled={playedToday >= MAX_TRIES} onClick={() => setView({ type: 'game' })}>{playedToday >= MAX_TRIES ? 'خلصت محاولات النهاردة' : 'العب دلوقتي'}</button>
               </>
             ) : (
               <p className="muted">مفيش تحديات متاحة حاليًا.</p>
@@ -208,11 +216,27 @@ export default function Student({ session }) {
                     <div className="strong">{a.title}</div>
                     <div className="muted small">{a.kind === 'quiz' ? 'كويز · ' : ''}{dueLabel(a.due_at)}</div>
                   </div>
-                  <button className="btn-outline" disabled title="صفحة الحل هتتضاف في الخطوة الجاية">ابدأ</button>
+                  <button className="btn-outline" onClick={() => setView({ type: 'assignment', a })}>ابدأ</button>
                 </div>
               ))
             ) : (
               <p className="muted">خلصت كل الواجبات. برافو!</p>
+            )}
+          </section>
+
+          <section className="card" aria-label="النتايج">
+            <h2>آخر النتايج</h2>
+            {results.length ? (
+              results.map((r) => (
+                <div className="row" key={r.assignment_id}>
+                  <div className="grow strong">{r.assignments?.title}</div>
+                  <span className={`pill ${r.final_score != null ? 'green' : ''}`}>
+                    {r.final_score != null ? `${fmt(r.final_score)}٪` : 'بانتظار تصحيح المدرس'}
+                  </span>
+                </div>
+              ))
+            ) : (
+              <p className="muted">لسه ماسلمتش حاجة.</p>
             )}
           </section>
 
