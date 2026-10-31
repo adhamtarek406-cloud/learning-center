@@ -3,6 +3,7 @@ import { supabase } from './supabase.js'
 import Login from './Login.jsx'
 import Student from './Student.jsx'
 import Admin from './Admin.jsx'
+import Parent from './Parent.jsx'
 
 export default function App() {
   const [session, setSession] = useState(undefined)
@@ -23,5 +24,6 @@ export default function App() {
   if (!session) return <Login />
   if (!role) return <div className="center-msg">جاري التحميل...</div>
   if (['manager', 'teacher', 'assistant'].includes(role)) return <Admin session={session} role={role} />
+  if (role === 'parent') return <Parent />
   return <Student session={session} />
 }

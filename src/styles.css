@@ -124,3 +124,10 @@ td { padding: 10px; border-bottom: 1px solid #EFEBFB; vertical-align: middle; }
 .qbox { border: 2px solid #E6E1FA; border-radius: 16px; padding: 14px; display: flex; flex-direction: column; gap: 10px; }
 .opts-edit { display: flex; flex-direction: column; gap: 8px; }
 .ans { margin: 0; padding-inline-start: 22px; display: flex; flex-direction: column; gap: 8px; }
+
+.stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+.stat { background: #fff; border: 1px solid #E6E1FA; border-radius: 20px; padding: 18px; display: flex; flex-direction: column; gap: 4px; }
+.stat b { font-size: 28px; font-weight: 800; color: #3B2A8C; }
+.stat span { font-size: 14px; color: #4A3F92; }
+@media (max-width: 860px) { .stats { grid-template-columns: 1fr 1fr; } }
+@media print { .admin-top, .tabs, button { display: none !important; } body { background: #fff; } }

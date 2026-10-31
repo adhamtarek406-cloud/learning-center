@@ -42,6 +42,7 @@ export default function Login() {
           كلمة السر
           <input type="password" dir="ltr" minLength={8} value={password} onChange={(e) => setPassword(e.target.value)} required autoComplete={mode === 'login' ? 'current-password' : 'new-password'} />
         </label>
+        {mode === 'signup' && <p className="muted small">ولي أمر؟ سجّل بنفس الطريقة، وإدارة السنتر هتربط حسابك بحساب ابنك.</p>}
         {msg && <p className="msg" role="alert">{msg}</p>}
         <button className="btn-primary" disabled={busy}>
           {busy ? 'لحظة...' : mode === 'login' ? 'دخول' : 'إنشاء الحساب'}

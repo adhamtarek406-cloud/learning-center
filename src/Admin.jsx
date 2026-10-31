@@ -29,12 +29,13 @@ function Notice({ err }) {
 /* ---------------- الطلاب والفريق ---------------- */
 function People({ role }) {
   const [d, load, err] = useLoad(async () => {
-    const [profiles, groups, enr] = await Promise.all([
+    const [profiles, groups, enr, links] = await Promise.all([
       q(supabase.from('profiles').select('id, full_name, email, role, phone, created_at').order('created_at', { ascending: false })),
       q(supabase.from('groups').select('id, name, levels(name, subjects(name))').order('name')),
       q(supabase.from('enrollments').select('student_id, group_id')),
+      q(supabase.from('parent_links').select('parent_id, student_id')),
     ])
-    return { profiles, groups, enr }
+    return { profiles, groups, enr, links }
   })
   const [msg, setMsg] = useState('')
   const [filter, setFilter] = useState('')
@@ -122,6 +123,44 @@ function People({ role }) {
           </table>
         </div>
         {role === 'manager' && <p className="muted small">لتعيين مدرس أو مساعد: يسجل حساب عادي من صفحة التسجيل، وبعدين غيّر دوره من جدول الطلاب فوق.</p>}
+      </section>
+
+      <section className="card">
+        <h2>أولياء الأمور</h2>
+        <div className="tbl-wrap">
+          <table>
+            <thead><tr><th>الاسم</th><th>الإيميل</th><th>الأبناء المربوطين</th>{role === 'manager' && <th>ربط بطالب</th>}</tr></thead>
+            <tbody>
+              {d.profiles.filter((p) => p.role === 'parent').map((p) => {
+                const mine = d.links.filter((l) => l.parent_id === p.id)
+                return (
+                  <tr key={p.id}>
+                    <td className="strong">{p.full_name}</td>
+                    <td dir="ltr" className="muted">{p.email}</td>
+                    <td>
+                      {mine.map((l) => (
+                        <span className="pill tag" key={l.student_id}>
+                          {d.profiles.find((x) => x.id === l.student_id)?.full_name ?? '—'}
+                          {role === 'manager' && <button className="x" aria-label="فك الربط" onClick={() => act(() => q(supabase.from('parent_links').delete().eq('parent_id', p.id).eq('student_id', l.student_id)))}>×</button>}
+                        </span>
+                      ))}
+                      {mine.length === 0 && <span className="muted small">مفيش</span>}
+                    </td>
+                    {role === 'manager' && (
+                      <td>
+                        <select className="fld" value="" onChange={(e) => e.target.value && act(() => q(supabase.from('parent_links').insert({ parent_id: p.id, student_id: e.target.value })))}>
+                          <option value="">اختار طالب...</option>
+                          {d.profiles.filter((x) => x.role === 'student' && !mine.some((l) => l.student_id === x.id)).map((x) => <option key={x.id} value={x.id}>{x.full_name}</option>)}
+                        </select>
+                      </td>
+                    )}
+                  </tr>
+                )
+              })}
+              {d.profiles.filter((p) => p.role === 'parent').length === 0 && <tr><td colSpan="4" className="muted">مفيش أولياء أمور لسه. ولي الأمر يسجل حساب عادي، وبعدين غيّر دوره إلى "ولي أمر" من جدول الطلاب فوق وارجع اربطه بابنه هنا.</td></tr>}
+            </tbody>
+          </table>
+        </div>
       </section>
     </>
   )
@@ -611,9 +650,137 @@ function ScoreField({ value, onSave }) {
   )
 }
 
+/* ---------------- استيراد الطلبة ---------------- */
+function parseRows(text) {
+  const rows = []
+  for (const raw of text.split(/\r?\n/)) {
+    const line = raw.trim()
+    if (!line) continue
+    const cells = line.split(/\t|,|;|،/).map((c) => c.trim().replace(/^"|"$/g, ''))
+    const email = cells.find((c) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(c))
+    if (!email) { rows.push({ bad: true, raw: line }); continue }
+    const rest = cells.filter((c) => c !== email && c !== '')
+    const phone = rest.find((c) => /^[+\d][\d\s-]{6,}$/.test(c))
+    const name = rest.find((c) => c !== phone)
+    rows.push({ email: email.toLowerCase(), name: name || email.split('@')[0], phone: phone || null, bad: !name })
+  }
+  return rows
+}
+
+function ImportStudents() {
+  const [d, load, err] = useLoad(async () => {
+    const [groups, pending, profiles] = await Promise.all([
+      q(supabase.from('groups').select('id, name, levels(name, subjects(name))').order('name')),
+      q(supabase.from('pending_students').select('id, email, full_name, claimed_at, group_id, created_at').order('created_at', { ascending: false }).limit(300)),
+      q(supabase.from('profiles').select('id, email')),
+    ])
+    return { groups, pending, profiles }
+  })
+  const [text, setText] = useState('')
+  const [group, setGroup] = useState('')
+  const [msg, setMsg] = useState('')
+  const [ok, setOk] = useState('')
+  const [busy, setBusy] = useState(false)
+  if (!d) return <Notice err={err} />
+
+  const rows = parseRows(text)
+  const good = rows.filter((r) => !r.bad)
+  const gname = (id) => { const g = d.groups.find((x) => x.id === id); return g ? `${g.levels?.subjects?.name ?? ''} ${g.levels?.name ?? ''} · ${g.name}` : '—' }
+  const existing = new Map(d.profiles.filter((p) => p.email).map((p) => [p.email.toLowerCase(), p.id]))
+
+  function onFile(e) {
+    const f = e.target.files?.[0]
+    if (!f) return
+    const r = new FileReader()
+    r.onload = () => setText(String(r.result))
+    r.readAsText(f, 'utf-8')
+  }
+
+  async function run() {
+    setBusy(true); setMsg(''); setOk('')
+    try {
+      const already = good.filter((r) => existing.has(r.email))
+      const fresh = good.filter((r) => !existing.has(r.email))
+      if (fresh.length) {
+        await q(supabase.from('pending_students').upsert(fresh.map((r) => ({ email: r.email, full_name: r.name, phone: r.phone, group_id: group || null })), { onConflict: 'email' }))
+      }
+      if (group && already.length) {
+        await q(supabase.from('enrollments').upsert(already.map((r) => ({ student_id: existing.get(r.email), group_id: group })), { onConflict: 'student_id,group_id' }))
+      }
+      setOk(`اتحضّر ${fresh.length.toLocaleString('ar-EG')} طالب جديد${already.length ? `، واتضم ${already.length.toLocaleString('ar-EG')} طالب مسجل أصلًا` : ''}.`)
+      setText('')
+      await load()
+    } catch (e) { setMsg(e.message) }
+    setBusy(false)
+  }
+
+  const waiting = d.pending.filter((p) => !p.claimed_at).length
+
+  return (
+    <>
+      <section className="card">
+        <h2>استيراد طلبة من Excel</h2>
+        <p className="muted">انسخ الأعمدة من Excel (الاسم، الإيميل، الموبايل اختياري) والصقها هنا، أو ارفع ملف CSV. كل طالب بيعمل حساب بنفسه بنفس الإيميل ده، وساعتها بيتضم للمجموعة تلقائي وبياناته بتتملي.</p>
+        <Notice err={msg} />
+        <div className="form">
+          <label>المجموعة (اختياري)
+            <select className="fld" value={group} onChange={(e) => setGroup(e.target.value)}>
+              <option value="">من غير مجموعة</option>
+              {d.groups.map((g) => <option key={g.id} value={g.id}>{gname(g.id)}</option>)}
+            </select>
+          </label>
+          <label>أو ملف CSV<input className="fld" type="file" accept=".csv,.txt" onChange={onFile} /></label>
+        </div>
+        <textarea className="fld area" rows={8} dir="auto" placeholder={'أحمد علي\tahmed@example.com\t01000000000\nمريم حسن\tmariam@example.com'} value={text} onChange={(e) => setText(e.target.value)} aria-label="بيانات الطلبة" />
+        {rows.length > 0 && (
+          <>
+            <p className="muted">{good.length.toLocaleString('ar-EG')} صف سليم{rows.length - good.length > 0 ? ` · ${(rows.length - good.length).toLocaleString('ar-EG')} فيه مشكلة (هيتجاهلوا)` : ''}</p>
+            <div className="tbl-wrap">
+              <table>
+                <thead><tr><th>الاسم</th><th>الإيميل</th><th>الموبايل</th><th></th></tr></thead>
+                <tbody>
+                  {rows.slice(0, 50).map((r, i) => r.bad ? (
+                    <tr key={i}><td colSpan="3" className="muted" dir="auto">{r.raw}</td><td><span className="pill">ناقص اسم أو إيميل</span></td></tr>
+                  ) : (
+                    <tr key={i}><td className="strong">{r.name}</td><td dir="ltr">{r.email}</td><td dir="ltr">{r.phone ?? '—'}</td><td>{existing.has(r.email) ? <span className="pill">مسجل أصلًا</span> : <span className="pill green">جديد</span>}</td></tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <button className="btn-primary" disabled={busy || good.length === 0} onClick={run}>{busy ? 'لحظة...' : `استيراد ${good.length.toLocaleString('ar-EG')} طالب`}</button>
+          </>
+        )}
+        {ok && <p className="msg" role="status">{ok}</p>}
+      </section>
+
+      <section className="card">
+        <h2>المستوردين ({d.pending.length.toLocaleString('ar-EG')}) · لسه ما سجلوش: {waiting.toLocaleString('ar-EG')}</h2>
+        <p className="muted small">ابعت لهم رابط الموقع، وبعد ما يسجلوا بنفس الإيميل بتظهر حالتهم "انضم".</p>
+        <div className="tbl-wrap">
+          <table>
+            <thead><tr><th>الاسم</th><th>الإيميل</th><th>المجموعة</th><th>الحالة</th></tr></thead>
+            <tbody>
+              {d.pending.map((p) => (
+                <tr key={p.id}>
+                  <td className="strong">{p.full_name}</td>
+                  <td dir="ltr" className="muted">{p.email}</td>
+                  <td>{p.group_id ? gname(p.group_id) : '—'}</td>
+                  <td>{p.claimed_at ? <span className="pill green">انضم</span> : <span className="pill">مستني التسجيل</span>}</td>
+                </tr>
+              ))}
+              {d.pending.length === 0 && <tr><td colSpan="4" className="muted">لسه ما استوردتش حد.</td></tr>}
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </>
+  )
+}
+
 /* ---------------- الغلاف ---------------- */
 const TABS = [
   ['people', 'الطلاب والفريق'],
+  ['import', 'استيراد طلبة'],
   ['groups', 'المجموعات'],
   ['sessions', 'الحصص'],
   ['attendance', 'الحضور'],
@@ -646,6 +813,7 @@ export default function Admin({ session, role }) {
       </nav>
       <main className="admin-main">
         {tab === 'people' && <People role={role} />}
+        {tab === 'import' && <ImportStudents />}
         {tab === 'groups' && <Groups role={role} />}
         {tab === 'sessions' && <Sessions />}
         {tab === 'attendance' && <Attendance />}
