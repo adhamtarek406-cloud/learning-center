@@ -1,3 +1,4 @@
+import { artUrl } from './brandArt.js'
 import { useEffect, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { supabase } from './supabase.js'
@@ -37,7 +38,7 @@ export function Stars({ value, size = 16 }) {
 export function Avatar({ name, photo, size = 64 }) {
   return photo
     ? <img className="t-photo" src={photo} alt={`صورة ${name}`} width={size} height={size} style={{ width: size, height: size }} />
-    : <img className="t-photo" src="./brand/avatar-teacher-default.svg" alt="" width={size} height={size} style={{ width: size, height: size }} />
+    : <img className="t-photo" src={artUrl('avatar-teacher-default')} alt="" width={size} height={size} style={{ width: size, height: size }} />
 }
 
 /** اختيار الصف */

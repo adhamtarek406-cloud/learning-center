@@ -3,7 +3,7 @@ import { supabase } from './supabase.js'
 import Logo from './Logo.jsx'
 import Student from './Student.jsx'
 import { AnimatePresence, motion } from 'framer-motion'
-import { Tabs, EASE } from './ui.jsx'
+import { Tabs, EASE, Icon } from './ui.jsx'
 
 import { ROLE_AR, fmtDT, fmtD, num, q, useLoad, Notice, Modal, logAct } from './adminkit.jsx'
 import Accounts from './Accounts.jsx'
@@ -807,6 +807,7 @@ const NAV = {
   ],
 }
 const withBadge = (l, n) => (n ? `${l} (${num(n)})` : l)
+const NAV_ICON = { today: 'home', teach: 'schedule', students: 'teachers', money: 'subscription', setup: 'settings', page: 'profile', overview: 'home', attendance: 'attendance', grading: 'grading', absences: 'absence', messages: 'messages', mygroups: 'teachers' }
 
 export default function Admin({ session, role }) {
   const uid = session.user.id
@@ -821,7 +822,7 @@ export default function Admin({ session, role }) {
   }, [tab, role])
   const badge = { messages: unread, requests: pendingReq }
   const group = nav.find((g) => g[2].some(([k]) => k === tab)) ?? nav[0]
-  const groups = nav.map(([g, l, items]) => [g, withBadge(l, items.reduce((s, [k]) => s + (badge[k] ?? 0), 0))])
+  const groups = nav.map(([g, l, items]) => [g, <span className="tab-ic" key={g}><Icon name={NAV_ICON[g] ?? 'home'} size={18} />{withBadge(l, items.reduce((s, [k]) => s + (badge[k] ?? 0), 0))}</span>])
   const subs = group[2].map(([k, l]) => [k, withBadge(l, badge[k])])
   const go = (k) => { setTab(k); setLastIn((m) => ({ ...m, [nav.find((g) => g[2].some(([x]) => x === k))?.[0]]: k })) }
   const pickGroup = (g) => { const it = nav.find((x) => x[0] === g); go(lastIn[g] ?? it[2][0][0]) }

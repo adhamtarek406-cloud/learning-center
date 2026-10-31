@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { supabase } from './supabase.js'
 import Logo from './Logo.jsx'
 import { motion } from 'framer-motion'
-import { Tabs, container, item, Empty } from './ui.jsx'
+import { Tabs, container, item, Empty, Icon } from './ui.jsx'
 import { Thread } from './Staff.jsx'
 import Teachers from './Teachers.jsx'
 
@@ -69,7 +69,7 @@ export default function Parent({ session }) {
           <button className="btn-link" onClick={() => supabase.auth.signOut()}>تسجيل الخروج</button>
         </div>
       </header>
-      {kids && kids.length > 0 && <Tabs items={sections} value={tab} onChange={setTab} label="أقسام ولي الأمر" id="parent-tab" />}
+      {kids && kids.length > 0 && <Tabs items={sections.map(([k, l]) => [k, <span className="tab-ic" key={k}><Icon name={{ report: 'leaderboard', att: 'attendance', grades: 'grading', subs: 'subscription', teachers: 'teachers', news: 'announcements', chat: 'messages' }[k]} size={18} />{l}</span>])} value={tab} onChange={setTab} label="أقسام ولي الأمر" id="parent-tab" />}
       <main className="admin-main">
         {err && <p className="msg" role="alert">حصلت مشكلة: {err}</p>}
         {!kids ? (

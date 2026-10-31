@@ -8,7 +8,7 @@ import Teachers from './Teachers.jsx'
 import { openSession, platformOf } from './meet.js'
 import { StudentActivities, ActivityView } from './Activities.jsx'
 import { motion } from 'framer-motion'
-import { container, item, rowItem, CountUp, GoIcon, Progress, Tabs, Empty, Rank, badgeArt } from './ui.jsx'
+import { container, item, rowItem, CountUp, GoIcon, Progress, Tabs, Empty, Rank, badgeArt, Icon } from './ui.jsx'
 
 const fmt = (n) => Number(n ?? 0).toLocaleString('ar-EG')
 const dayName = new Intl.DateTimeFormat('ar-EG', { weekday: 'long' })
@@ -36,16 +36,16 @@ function dueLabel(iso) {
 }
 
 const NAV = [
-  ['home', 'الرئيسية', 'M3 11l9-8 9 8v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z'],
-  ['teachers', 'اختار مدرسك', 'M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75'],
-  ['news', 'الإعلانات والتنبيهات', 'M6 8a6 6 0 1 1 12 0c0 7 3 9 3 9H3s3-2 3-9M10.3 21a1.94 1.94 0 0 0 3.4 0'],
-  ['schedule', 'جدول الحصص', 'M3 8a3 3 0 0 1 3-3h12a3 3 0 0 1 3 3v10a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3zM8 3v4M16 3v4M3 10h18'],
-  ['assign', 'الواجبات والكويزات', 'M6 3h9l4 4v14H6zM9 12h7M9 16h7'],
-  ['activities', 'أنشطة تفاعلية', 'M12 2l9 5v10l-9 5-9-5V7zM12 22V12M21 7l-9 5-9-5'],
-  ['games', 'التحديات والألعاب', 'M8 4h8v5a4 4 0 0 1-8 0zM12 13v4M8 21h8M8 6H4v1a3 3 0 0 0 4 3M16 6h4v1a3 3 0 0 1-4 3'],
-  ['board', 'لوحة الصدارة', 'M5 20V10M12 20V4M19 20v-7'],
-  ['sub', 'اشتراكي', 'M3 9a3 3 0 0 1 3-3h12a3 3 0 0 1 3 3v7a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3zM3 10h18M7 15h3'],
-  ['me', 'ملفي', 'M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8'],
+  ['home', 'الرئيسية', 'home'],
+  ['teachers', 'اختار مدرسك', 'teachers'],
+  ['news', 'الإعلانات والتنبيهات', 'announcements'],
+  ['schedule', 'جدول الحصص', 'schedule'],
+  ['assign', 'الواجبات والكويزات', 'assignments'],
+  ['activities', 'أنشطة تفاعلية', 'activities'],
+  ['games', 'التحديات والألعاب', 'games'],
+  ['board', 'لوحة الصدارة', 'leaderboard'],
+  ['sub', 'اشتراكي', 'subscription'],
+  ['me', 'ملفي', 'profile'],
 ]
 
 export default function Student({ session }) {
@@ -168,9 +168,9 @@ export default function Student({ session }) {
           </div>
         </div>
         <nav aria-label="القائمة">
-          {NAV.map(([key, label, path]) => (
+          {NAV.map(([key, label, icon]) => (
             <button key={key} type="button" className={sec === key ? 'nav active' : 'nav'} aria-current={sec === key ? 'page' : undefined} onClick={() => go(key)}>
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={path} /></svg>
+              <Icon name={icon} />
               {label}
             </button>
           ))}
@@ -193,7 +193,7 @@ export default function Student({ session }) {
           </div>
           <div className="top-end">
             <button className="bell" aria-label={`التنبيهات${unseen ? ` (${unseen} جديد)` : ''}`} onClick={() => go('news')}>
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M6 8a6 6 0 1 1 12 0c0 7 3 9 3 9H3s3-2 3-9M10.3 21a1.94 1.94 0 0 0 3.4 0" /></svg>
+              <Icon name="announcements" size={20} />
               {unseen > 0 && <span className="bell-n">{fmt(unseen)}</span>}
             </button>
             {streak.current > 0 && <div className="streak" title={`أحسن سلسلة: ${fmt(streak.best)} يوم`}>{fmt(streak.current)} {streak.current === 1 ? 'يوم' : 'أيام'} ورا بعض</div>}
@@ -256,7 +256,7 @@ export default function Student({ session }) {
             {game ? (
               <>
                 <div className="challenge">
-                  <svg width="72" height="72" viewBox="0 0 72 72" role="img" aria-label="أيقونة اللعبة"><rect width="72" height="72" rx="20" fill="#7A66E8" /><path d="M20 26h32M20 36h22M20 46h28" stroke="#fff" strokeWidth="5" strokeLinecap="round" /><circle cx="52" cy="46" r="7" fill="#FFB800" /></svg>
+                  <span className="game-ico" role="img" aria-label="أيقونة اللعبة"><Icon name="games" size={38} /></span>
                   <div className="grow">
                     <div className="strong">{game.name}</div>
                     <div className="muted">{game.description}</div>
@@ -460,7 +460,7 @@ function Pages({ links, sec, myFirst, upcoming, past, assignments, allResults, g
             const max = g.max_daily_tries ?? 5
             return (
               <div className="challenge" key={g.id}>
-                <svg width="72" height="72" viewBox="0 0 72 72" role="img" aria-label="أيقونة اللعبة"><rect width="72" height="72" rx="20" fill="#7A66E8" /><path d="M20 26h32M20 36h22M20 46h28" stroke="#fff" strokeWidth="5" strokeLinecap="round" /><circle cx="52" cy="46" r="7" fill="#FFB800" /></svg>
+                <span className="game-ico" role="img" aria-label="أيقونة اللعبة"><Icon name="games" size={38} /></span>
                 <div className="grow">
                   <div className="strong">{g.name}</div>
                   <div className="muted">{g.description}</div>

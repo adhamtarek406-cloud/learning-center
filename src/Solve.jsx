@@ -1,3 +1,4 @@
+import { artUrl } from './brandArt.js'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from './supabase.js'
 import { typeOf, isCorrect, pointsOf, TYPES } from './questions.js'
@@ -155,7 +156,7 @@ export default function Solve({ assignment, onBack, preview }) {
       {phase === 'done' && done && (
         <section className="card">
           <h2>{done.preview ? 'نتيجة المعاينة' : done.auto ? 'الوقت خلص واتسلّمت إجاباتك' : 'اتسلّم'}</h2>
-          {done.score != null && <img className="result-art" src={`./brand/${done.score >= 80 ? 'high-score' : 'mid-score'}.svg`} alt="" width="200" height="150" />}
+          {done.score != null && <img className="result-art" src={artUrl(done.score >= 80 ? 'high-score' : 'mid-score')} alt="" width="200" height="150" />}
           {done.score != null && <p className="big">{fmt(done.score)}٪</p>}
           {done.score != null && <p className="strong">{done.score >= 80 ? 'برافو! إنت طاير 🚀' : done.score >= 50 ? 'كويس، كمّل وهتوصل ⚡' : 'ولا يهمك، راجع وجرّب تاني 💪'}</p>}
           <p className="muted">

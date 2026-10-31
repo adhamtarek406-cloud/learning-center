@@ -343,3 +343,7 @@ tr.off td { opacity: .6; }
 .badge-tile img { width: 88px; height: 88px; }
 .badge-tile.locked .strong { color: var(--muted); }
 .result-art { display: block; margin: 0 auto 4px; max-width: 70%; height: auto; }
+.tab-ic { display: inline-flex; align-items: center; gap: 8px; }
+@media (max-width: 640px) { .tab-ic { flex-direction: column; gap: 2px; } .tab-ic svg { width: 18px; height: 18px; } }
+.game-ico { width: 72px; height: 72px; flex: none; border-radius: 20px; display: grid; place-items: center; color: #fff; background: linear-gradient(135deg, var(--brand), var(--brand2)); box-shadow: 0 12px 24px -14px rgba(88,66,227,.8); }
+.nav svg { flex: none; }
