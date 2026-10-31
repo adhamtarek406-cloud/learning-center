@@ -46,6 +46,6 @@ export default function App() {
       </div>
     )
   if (['manager', 'teacher', 'assistant'].includes(role)) return <Admin session={session} role={role} />
-  if (role === 'parent') return <Parent />
+  if (role === 'parent') return <Parent session={session} />
   return <Student session={session} />
 }

@@ -3,6 +3,7 @@ import { supabase } from './supabase.js'
 import Logo from './Logo.jsx'
 import Solve from './Solve.jsx'
 import Game from './Game.jsx'
+import Review from './Review.jsx'
 import { motion } from 'framer-motion'
 import { container, item, rowItem, CountUp, GoIcon, Progress, Tabs } from './ui.jsx'
 
@@ -33,11 +34,13 @@ function dueLabel(iso) {
 
 const NAV = [
   ['home', 'الرئيسية', 'M3 11l9-8 9 8v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z'],
+  ['news', 'الإعلانات والتنبيهات', 'M6 8a6 6 0 1 1 12 0c0 7 3 9 3 9H3s3-2 3-9M10.3 21a1.94 1.94 0 0 0 3.4 0'],
   ['schedule', 'جدول الحصص', 'M3 8a3 3 0 0 1 3-3h12a3 3 0 0 1 3 3v10a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3zM8 3v4M16 3v4M3 10h18'],
   ['assign', 'الواجبات والكويزات', 'M6 3h9l4 4v14H6zM9 12h7M9 16h7'],
   ['games', 'التحديات والألعاب', 'M8 4h8v5a4 4 0 0 1-8 0zM12 13v4M8 21h8M8 6H4v1a3 3 0 0 0 4 3M16 6h4v1a3 3 0 0 1-4 3'],
   ['board', 'لوحة الصدارة', 'M5 20V10M12 20V4M19 20v-7'],
   ['sub', 'اشتراكي', 'M3 9a3 3 0 0 1 3-3h12a3 3 0 0 1 3 3v7a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3zM3 10h18M7 15h3'],
+  ['me', 'ملفي', 'M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8'],
 ]
 
 export default function Student({ session }) {
@@ -47,6 +50,18 @@ export default function Student({ session }) {
   const [view, setView] = useState(null)
   const [tick, setTick] = useState(0)
   const [sec, setSec] = useState('home')
+  const seenKey = `seen_${uid}`
+  const [seen, setSeen] = useState(() => { try { return localStorage.getItem(seenKey) || '1970' } catch { return '1970' } })
+  const [seenBefore, setSeenBefore] = useState('1970')
+  function go(k) {
+    if (k === 'news') {
+      setSeenBefore(seen)
+      const now = new Date().toISOString()
+      try { localStorage.setItem(seenKey, now) } catch { /* مفيش تخزين */ }
+      setSeen(now)
+    }
+    setSec(k)
+  }
 
   useEffect(() => {
     let alive = true
@@ -54,7 +69,7 @@ export default function Student({ session }) {
       const nowIso = new Date().toISOString()
       const startOfDay = new Date(new Date().setHours(0, 0, 0, 0)).toISOString()
       const SEL = 'id, starts_at, topic, live_url, recording_url, groups(name, schedule, levels(name, subjects(name)))'
-      const [prof, sess, assigns, subs, games, scores, todayScores, mySubs, upc, past, overall, myBadges] = await Promise.all([
+      const [prof, sess, assigns, subs, games, scores, todayScores, mySubs, upc, past, overall, myBadges, anns, streak] = await Promise.all([
         supabase.from('profiles').select('*').eq('id', uid).single(),
         supabase
           .from('sessions')
@@ -62,16 +77,18 @@ export default function Student({ session }) {
           .gte('starts_at', nowIso)
           .order('starts_at')
           .limit(1),
-        supabase.from('assignments').select('id, title, kind, due_at').order('due_at'),
+        supabase.from('assignments').select('id, title, kind, due_at, created_at').order('due_at'),
         supabase.from('subscriptions').select('id, status, starts_on, renews_on, plans(name)').eq('student_id', uid).order('starts_on', { ascending: false }),
         supabase.from('games').select('id, name, description, max_daily_tries, seconds, config').eq('active', true).order('name'),
         supabase.from('game_scores').select('game_id, score, played_at').eq('student_id', uid),
         supabase.from('game_scores').select('id', { count: 'exact', head: true }).eq('student_id', uid).gte('played_at', startOfDay),
-        supabase.from('submissions').select('assignment_id, auto_score, final_score, submitted_at, assignments(title, kind)').eq('student_id', uid).order('submitted_at', { ascending: false }),
+        supabase.from('submissions').select('assignment_id, auto_score, final_score, submitted_at, feedback, graded_at, assignments(title, kind)').eq('student_id', uid).order('submitted_at', { ascending: false }),
         supabase.from('sessions').select(SEL).gte('starts_at', nowIso).order('starts_at').limit(30),
         supabase.from('sessions').select(SEL).lt('starts_at', nowIso).order('starts_at', { ascending: false }).limit(10),
         supabase.rpc('leaderboard'),
         supabase.from('student_badges').select('awarded_at, badges(name, rule)').eq('student_id', uid).order('awarded_at', { ascending: false }),
+        supabase.from('announcements').select('id, title, body, author_name, created_at').order('created_at', { ascending: false }).limit(30),
+        supabase.rpc('streak_of', { p_student: uid }),
       ])
       const bad = [prof, sess, assigns, subs, games, scores].find((r) => r.error)
       if (bad) { if (alive) setErr(bad.error.message); return }
@@ -100,6 +117,9 @@ export default function Student({ session }) {
           boards,
           playedMap,
           badges: myBadges.data ?? [],
+          anns: anns.data ?? [],
+          streak: streak.data ?? { current: 0, best: 0 },
+          allAssignments: assigns.data ?? [],
           board,
           points: (scores.data ?? []).reduce((s, r) => s + r.score, 0),
           playedToday: game ? playedMap[game.id] ?? 0 : 0,
@@ -112,14 +132,21 @@ export default function Student({ session }) {
   if (err) return <div className="center-msg">حصلت مشكلة في تحميل البيانات: {err}</div>
   if (!d) return <div className="center-msg">جاري التحميل...</div>
 
-  const { profile, session: next, assignments, sub, game, board, points, playedToday, results, subs, upcoming, past, overall, scoreRows, allResults, games: gameList, boards, playedMap, badges } = d
+  const { profile, session: next, assignments, sub, game, board, points, playedToday, results, subs, upcoming, past, overall, scoreRows, allResults, games: gameList, boards, playedMap, badges, anns, streak, allAssignments } = d
   const back = () => { setView(null); setTick((t) => t + 1) }
   if (view?.type === 'assignment') return <Solve assignment={view.a} onBack={back} />
+  if (view?.type === 'review') return <Review assignmentId={view.id} onBack={() => setView(null)} />
   if (view?.type === 'game') { const g = view.game ?? game; return <Game game={g} playedToday={playedMap[g.id] ?? 0} onBack={back} /> }
   const level = next?.groups?.levels
   const myFirst = profile.first_name
   const myRank = board.findIndex((r) => r.first_name === myFirst)
   const MAX_TRIES = game?.max_daily_tries ?? 5
+  const news = [
+    ...anns.map((a) => ({ t: a.created_at, kind: 'إعلان', title: a.title, body: a.body, by: a.author_name })),
+    ...allAssignments.filter((a) => a.created_at).map((a) => ({ t: a.created_at, kind: a.kind === 'quiz' ? 'كويز جديد' : 'واجب جديد', title: a.title, body: dueLabel(a.due_at) })),
+    ...allResults.filter((r) => r.graded_at).map((r) => ({ t: r.graded_at, kind: 'درجة جديدة', title: r.assignments?.title, body: `${fmt(r.final_score)}٪${r.feedback ? ` · ${r.feedback}` : ''}`, review: r.assignment_id })),
+  ].sort((a, b) => b.t.localeCompare(a.t)).slice(0, 40)
+  const unseen = news.filter((n) => n.t > seen).length
 
   return (
     <div className="shell">
@@ -133,7 +160,7 @@ export default function Student({ session }) {
         </div>
         <nav aria-label="القائمة">
           {NAV.map(([key, label, path]) => (
-            <button key={key} type="button" className={sec === key ? 'nav active' : 'nav'} aria-current={sec === key ? 'page' : undefined} onClick={() => setSec(key)}>
+            <button key={key} type="button" className={sec === key ? 'nav active' : 'nav'} aria-current={sec === key ? 'page' : undefined} onClick={() => go(key)}>
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={path} /></svg>
               {label}
             </button>
@@ -156,6 +183,11 @@ export default function Student({ session }) {
             )}
           </div>
           <div className="top-end">
+            <button className="bell" aria-label={`التنبيهات${unseen ? ` (${unseen} جديد)` : ''}`} onClick={() => go('news')}>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M6 8a6 6 0 1 1 12 0c0 7 3 9 3 9H3s3-2 3-9M10.3 21a1.94 1.94 0 0 0 3.4 0" /></svg>
+              {unseen > 0 && <span className="bell-n">{fmt(unseen)}</span>}
+            </button>
+            {streak.current > 0 && <div className="streak" title={`أحسن سلسلة: ${fmt(streak.best)} يوم`}>{fmt(streak.current)} {streak.current === 1 ? 'يوم' : 'أيام'} ورا بعض</div>}
             <div className="points">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="#E8A317" aria-hidden="true"><path d="M12 2l2.9 6.3 6.9.8-5.1 4.7 1.4 6.8L12 17.3 5.9 20.6l1.4-6.8L2.2 9.1l6.9-.8z" /></svg>
               <CountUp value={points} /> نقطة
@@ -186,6 +218,15 @@ export default function Student({ session }) {
             </div>
           )}
         </motion.section>
+
+        {anns.length > 0 && (
+          <motion.section className="card ann-card" variants={item} initial="hidden" animate="visible">
+            <div className="card-head"><h2>آخر الإعلانات</h2><button className="btn-link" onClick={() => go('news')}>الكل</button></div>
+            {anns.slice(0, 2).map((a) => (
+              <div className="row" key={a.id}><div className="grow"><div className="strong">{a.title}</div>{a.body && <div className="muted small clamp2">{a.body}</div>}</div><span className="muted small">{dateFmt.format(new Date(a.created_at))}</span></div>
+            ))}
+          </motion.section>
+        )}
 
         <motion.div className="grid" variants={container} initial="hidden" animate="visible">
           <motion.section variants={item} className="card" aria-label="التحدي">
@@ -285,7 +326,7 @@ export default function Student({ session }) {
         </>)}
 
         {sec !== 'home' && (
-          <Pages key={sec} sec={sec} {...{ myFirst, upcoming, past, assignments, allResults, gameList, boards, playedMap, badges, overall, scoreRows, points, subs }} onAssign={(a) => setView({ type: 'assignment', a })} onPlay={(g) => setView({ type: 'game', game: g })} />
+          <Pages key={sec} sec={sec} {...{ myFirst, upcoming, past, assignments, allResults, gameList, boards, playedMap, badges, overall, scoreRows, points, subs, news, seenBefore, streak, profile }} email={session.user.email} onSaved={() => setTick((t) => t + 1)} onReview={(id) => setView({ type: 'review', id })} onAssign={(a) => setView({ type: 'assignment', a })} onPlay={(g) => setView({ type: 'game', game: g })} />
         )}
       </main>
     </div>
@@ -312,7 +353,7 @@ function BoardList({ rows, myFirst }) {
 
 const STATUS_AR = { active: 'ساري', paused: 'موقوف', expired: 'منتهي', cancelled: 'ملغي' }
 
-function Pages({ sec, myFirst, upcoming, past, assignments, allResults, gameList, boards, playedMap, badges, overall, scoreRows, points, subs, onAssign, onPlay }) {
+function Pages({ sec, myFirst, upcoming, past, assignments, allResults, gameList, boards, playedMap, badges, overall, scoreRows, points, subs, news, seenBefore, streak, profile, email, onSaved, onReview, onAssign, onPlay }) {
   const [bt, setBt] = useState(gameList[0]?.id ?? 'all')
   const lv = (x) => `${x.groups?.levels?.subjects?.name ?? ''} · ${x.groups?.levels?.name ?? ''}`
   const wrap = (children) => (
@@ -375,6 +416,7 @@ function Pages({ sec, myFirst, upcoming, past, assignments, allResults, gameList
               <span className={`pill ${r.final_score != null ? 'green' : ''}`}>
                 {r.final_score != null ? `${fmt(r.final_score)}٪` : r.auto_score != null ? `${fmt(r.auto_score)}٪ (مبدئي)` : 'بانتظار تصحيح المدرس'}
               </span>
+              <button className="btn-outline" onClick={() => onReview(r.assignment_id)}>مراجعة</button>
             </div>
           )) : <p className="muted">لسه ماسلمتش حاجة.</p>}
         </motion.section>
@@ -390,7 +432,7 @@ function Pages({ sec, myFirst, upcoming, past, assignments, allResults, gameList
           <div className="stat"><b><CountUp value={points} /></b><span>مجموع نقاطك</span></div>
           <div className="stat"><b><CountUp value={best} /></b><span>أعلى نتيجة ليك</span></div>
           <div className="stat"><b><CountUp value={scoreRows.length} /></b><span>مرات اللعب</span></div>
-          <div className="stat"><b><CountUp value={todayTotal} /></b><span>محاولات النهاردة</span></div>
+          <div className="stat"><b><CountUp value={streak.current} /></b><span>أيام ورا بعض (أحسن {fmt(streak.best)})</span></div>
         </motion.div>
         <motion.section variants={item} className="card">
           <h2>الألعاب المتاحة</h2>
@@ -433,6 +475,25 @@ function Pages({ sec, myFirst, upcoming, past, assignments, allResults, gameList
       </motion.section>
     )
 
+  if (sec === 'news')
+    return wrap(
+      <motion.section variants={item} className="card">
+        <h2>الإعلانات والتنبيهات</h2>
+        {news.length ? news.map((n, i) => (
+          <div className={`row${n.t > seenBefore ? ' new' : ''}`} key={i}>
+            <div className="grow">
+              <div><span className="pill">{n.kind}</span> <span className="strong">{n.title}</span>{n.t > seenBefore && <span className="pill red" style={{ marginInlineStart: 6 }}>جديد</span>}</div>
+              {n.body && <div className="muted small" style={{ whiteSpace: 'pre-wrap' }}>{n.body}</div>}
+              <div className="muted small">{n.by ? `${n.by} · ` : ''}{dateFmt.format(new Date(n.t))}</div>
+            </div>
+            {n.review && <button className="btn-outline" onClick={() => onReview(n.review)}>مراجعة</button>}
+          </div>
+        )) : <p className="muted">مفيش جديد لسه.</p>}
+      </motion.section>
+    )
+
+  if (sec === 'me') return wrap(<Me profile={profile} email={email} onSaved={onSaved} />)
+
   // sub
   return wrap(
     <motion.section variants={item} className="card">
@@ -448,5 +509,49 @@ function Pages({ sec, myFirst, upcoming, past, assignments, allResults, gameList
       )) : <p className="muted">مفيش اشتراك متسجل لحد دلوقتي. الإدارة هتفعّله بعد الدفع.</p>}
       <p className="muted small">لتجديد الاشتراك أو التحويل بين الخطط كلّم إدارة السنتر.</p>
     </motion.section>
+  )
+}
+
+function Me({ profile, email, onSaved }) {
+  const [name, setName] = useState(profile.full_name ?? '')
+  const [phone, setPhone] = useState(profile.phone ?? '')
+  const [pw, setPw] = useState('')
+  const [pw2, setPw2] = useState('')
+  const [msg, setMsg] = useState('')
+  const [ok, setOk] = useState('')
+  async function saveInfo(e) {
+    e.preventDefault(); setMsg(''); setOk('')
+    const { error } = await supabase.rpc('update_my_profile', { p_name: name, p_phone: phone })
+    if (error) setMsg(error.message); else { setOk('اتحفظت بياناتك'); onSaved() }
+  }
+  async function savePw(e) {
+    e.preventDefault(); setMsg(''); setOk('')
+    if (pw !== pw2) { setMsg('كلمتين السر مش زي بعض'); return }
+    const { error } = await supabase.auth.updateUser({ password: pw })
+    if (error) setMsg(error.message); else { setOk('اتغيرت كلمة السر'); setPw(''); setPw2('') }
+  }
+  return (
+    <>
+      {msg && <p className="msg" role="alert">{msg}</p>}
+      {ok && <p className="msg ok" role="status">{ok}</p>}
+      <motion.section variants={item} className="card">
+        <h2>بياناتي</h2>
+        <form className="form" onSubmit={saveInfo}>
+          <label>الاسم<input className="fld" required minLength={2} maxLength={80} value={name} onChange={(e) => setName(e.target.value)} /></label>
+          <label>الموبايل<input className="fld" dir="ltr" inputMode="tel" value={phone} onChange={(e) => setPhone(e.target.value)} /></label>
+          <label>الإيميل<input className="fld" dir="ltr" value={email ?? ''} disabled /></label>
+          <button className="btn-primary">حفظ</button>
+        </form>
+        <p className="muted small">اسمك الأول بيظهر في لوحة الصدارة.</p>
+      </motion.section>
+      <motion.section variants={item} className="card">
+        <h2>تغيير كلمة السر</h2>
+        <form className="form" onSubmit={savePw}>
+          <label>كلمة السر الجديدة<input className="fld" type="password" dir="ltr" minLength={8} required autoComplete="new-password" value={pw} onChange={(e) => setPw(e.target.value)} /></label>
+          <label>اكتبها تاني<input className="fld" type="password" dir="ltr" minLength={8} required autoComplete="new-password" value={pw2} onChange={(e) => setPw2(e.target.value)} /></label>
+          <button className="btn-outline">تغيير</button>
+        </form>
+      </motion.section>
+    </>
   )
 }

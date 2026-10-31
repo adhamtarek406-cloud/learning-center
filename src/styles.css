@@ -197,3 +197,37 @@ tr.off td { opacity: .6; }
 .bar-n { font-size: 11px; font-weight: 700; color: var(--ink2); min-height: 14px; }
 .bar-l { font-size: 10px; color: var(--ink2); min-height: 12px; white-space: nowrap; }
 @media (max-width: 860px) { .stats-8 { grid-template-columns: 1fr 1fr; } }
+
+/* ===== الفريق والطالب وولي الأمر ===== */
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip-btn { border: 0; background: #F1EDFF; color: var(--ink); border-radius: 999px; padding: 8px 14px; min-height: 40px; font-weight: 700; font-size: 14px; }
+.chip-btn:hover { background: #E3DCFF; }
+.chip-btn.off { opacity: .55; text-decoration: line-through; }
+.modal-wide { min-width: 0; }
+.modal:has(.modal-wide) { max-width: 760px; }
+.att-quick { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.att-quick li { display: flex; align-items: center; gap: 12px; background: #F6F4FF; border-radius: 18px; padding: 8px 8px 8px 14px; transition: background-color .3s var(--ease); }
+.att-quick li.pre { background: #EAF7EF; }
+.att-quick li.abs { background: #FCEBEB; }
+.seg { display: inline-flex; background: #fff; border-radius: 999px; padding: 4px; box-shadow: inset 0 0 0 1.5px #DDD6FA; flex-shrink: 0; }
+.seg button { border: 0; background: transparent; border-radius: 999px; padding: 8px 16px; min-height: 40px; min-width: 64px; font-weight: 700; color: var(--ink2); }
+.seg button.on.yes { background: #1E8A4C; color: #fff; }
+.seg button.on.no { background: #B42323; color: #fff; }
+.sticky-save { position: sticky; bottom: 16px; align-self: stretch; }
+.ok-t { color: #14613A; }
+.bad-t { color: #A32727; }
+.chat { display: flex; flex-direction: column; gap: 10px; max-height: 55dvh; overflow-y: auto; padding: 4px; }
+.bubble { max-width: 80%; align-self: flex-end; background: #F1EDFF; border-radius: 18px 18px 18px 6px; padding: 10px 14px; }
+.bubble.mine { align-self: flex-start; background: var(--brand); color: #fff; border-radius: 18px 18px 6px 18px; }
+.bubble.mine .muted { color: rgba(255,255,255,.8); }
+.thread-row { border: 0; width: 100%; text-align: start; font-family: inherit; color: inherit; cursor: pointer; }
+.ellipsis { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 52ch; }
+.clamp2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.feedback { background: #FFF4D6; color: #5E4300; border-radius: 14px; padding: 10px 14px; }
+.row.new { box-shadow: inset 0 0 0 2px var(--brand); }
+.opt.right { background: #D5EFDF; box-shadow: inset 0 0 0 2px #14613A; }
+.opt.wrong { background: #FBE0E0; box-shadow: inset 0 0 0 2px #A32727; }
+.bell { position: relative; width: 44px; height: 44px; border-radius: 50%; border: 0; background: #fff; color: var(--brand); display: grid; place-items: center; box-shadow: 0 0 0 1px var(--ring), 0 10px 24px -14px rgba(60,40,160,.5); }
+.bell-n { position: absolute; top: -4px; inset-inline-end: -4px; min-width: 20px; height: 20px; padding: 0 5px; border-radius: 999px; background: #D23A3A; color: #fff; font-size: 11px; font-weight: 800; display: grid; place-items: center; }
+.streak { display: flex; align-items: center; background: #FFE3D3; color: #7A3418; border-radius: 999px; padding: 8px 14px; min-height: 44px; font-weight: 800; font-size: 14px; }
+@media (max-width: 860px) { .att-quick li { flex-wrap: wrap; } .seg { margin-inline-start: auto; } .bubble { max-width: 92%; } .top-end { flex-wrap: wrap; } }

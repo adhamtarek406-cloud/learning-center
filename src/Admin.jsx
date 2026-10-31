@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { supabase } from './supabase.js'
 import Logo from './Logo.jsx'
 import Student from './Student.jsx'
@@ -10,6 +10,7 @@ import Accounts from './Accounts.jsx'
 import Content from './Content.jsx'
 import GamesAdmin from './GamesAdmin.jsx'
 import Overview, { LogTab } from './Overview.jsx'
+import { MyGroups, QuickAttendance, Grading, Announcements, Inbox, Absences } from './Staff.jsx'
 
 const toLocalInput = (iso) => { const x = new Date(iso); x.setMinutes(x.getMinutes() - x.getTimezoneOffset()); return x.toISOString().slice(0, 16) }
 
@@ -245,10 +246,10 @@ function Groups({ role }) {
 }
 
 /* ---------------- الحصص ---------------- */
-function Sessions() {
+function Sessions({ uid, role }) {
   const [d, load, err] = useLoad(async () => {
     const [groups, sessions] = await Promise.all([
-      q(supabase.from('groups').select('id, name, levels(name, subjects(name))').order('name')),
+      q((role === 'teacher' ? supabase.from('groups').select('id, name, levels(name, subjects(name))').eq('teacher_id', uid) : supabase.from('groups').select('id, name, levels(name, subjects(name))')).order('name')),
       q(supabase.from('sessions').select('id, group_id, starts_at, topic, live_url, recording_url').order('starts_at', { ascending: false }).limit(60)),
     ])
     return { groups, sessions }
@@ -512,10 +513,10 @@ function PriceField({ value, onSave }) {
 /* ---------------- الواجبات والكويزات ---------------- */
 const emptyQ = (type) => ({ type, q: '', options: ['', '', '', ''], key: 0 })
 
-function Assignments() {
+function Assignments({ uid, role }) {
   const [d, load, err] = useLoad(async () => {
     const [groups, items, subs] = await Promise.all([
-      q(supabase.from('groups').select('id, name, levels(name, subjects(name))').order('name')),
+      q((role === 'teacher' ? supabase.from('groups').select('id, name, levels(name, subjects(name))').eq('teacher_id', uid) : supabase.from('groups').select('id, name, levels(name, subjects(name))')).order('name')),
       q(supabase.from('assignments').select('id, title, kind, due_at, group_id, questions').order('created_at', { ascending: false }).limit(60)),
       q(supabase.from('submissions').select('assignment_id')),
     ])
@@ -806,40 +807,31 @@ function ImportStudents() {
 }
 
 /* ---------------- الغلاف ---------------- */
-const TABS_STAFF = [
-  ['overview', 'نظرة عامة'],
-  ['people', 'الحسابات'],
-  ['import', 'استيراد طلبة'],
-  ['groups', 'المجموعات'],
-  ['sessions', 'الحصص'],
-  ['attendance', 'الحضور'],
-  ['assign', 'الواجبات'],
-  ['subs', 'الاشتراكات'],
-]
-const TABS_MANAGER = [
-  ['overview', 'نظرة عامة'],
-  ['people', 'الحسابات'],
-  ['import', 'استيراد طلبة'],
-  ['content', 'المحتوى'],
-  ['sessions', 'الحصص'],
-  ['attendance', 'الحضور'],
-  ['assign', 'الواجبات'],
-  ['subs', 'الاشتراكات'],
-  ['games', 'الألعاب'],
-  ['log', 'السجل'],
-]
-const TABS_OLD = [
-  ['people', 'الحسابات'],
-  ['import', 'استيراد طلبة'],
-  ['groups', 'المجموعات'],
-  ['sessions', 'الحصص'],
-  ['attendance', 'الحضور'],
-  ['assign', 'الواجبات'],
-  ['subs', 'الاشتراكات'],
-]
+const TABS = {
+  manager: [
+    ['overview', 'نظرة عامة'], ['people', 'الحسابات'], ['import', 'استيراد طلبة'], ['content', 'المحتوى'],
+    ['mygroups', 'المجموعات والطلاب'], ['sessions', 'الحصص'], ['attendance', 'الحضور'], ['grading', 'التصحيح'],
+    ['assign', 'الواجبات'], ['announce', 'الإعلانات'], ['messages', 'الرسايل'], ['absences', 'الغياب'],
+    ['subs', 'الاشتراكات'], ['games', 'الألعاب'], ['log', 'السجل'],
+  ],
+  teacher: [
+    ['mygroups', 'مجموعاتي'], ['sessions', 'الحصص'], ['attendance', 'الحضور'], ['grading', 'التصحيح'],
+    ['assign', 'الواجبات'], ['announce', 'الإعلانات'], ['messages', 'الرسايل'], ['absences', 'الغياب'],
+  ],
+  assistant: [
+    ['overview', 'نظرة عامة'], ['attendance', 'الحضور'], ['grading', 'التصحيح'], ['absences', 'الغياب'],
+    ['messages', 'الرسايل'], ['mygroups', 'المجموعات والطلاب'],
+  ],
+}
 
 export default function Admin({ session, role }) {
-  const [tab, setTab] = useState('overview')
+  const uid = session.user.id
+  const [tab, setTab] = useState(TABS[role][0][0])
+  const [unread, setUnread] = useState(0)
+  useEffect(() => {
+    supabase.from('messages').select('id', { count: 'exact', head: true }).eq('from_parent', true).eq('read', false).then(({ count }) => setUnread(count ?? 0))
+  }, [tab])
+  const tabs = TABS[role].map(([k, l]) => [k, k === 'messages' && unread ? `${l} (${num(unread)})` : l])
   const [asStudent, setAsStudent] = useState(false)
   if (asStudent) return (
     <>
@@ -856,7 +848,7 @@ export default function Admin({ session, role }) {
           <button className="btn-link" onClick={() => supabase.auth.signOut()}>تسجيل الخروج</button>
         </div>
       </header>
-      <Tabs items={role === 'manager' ? TABS_MANAGER : TABS_STAFF} value={tab} onChange={setTab} label="أقسام الإدارة" id="admin-tab" />
+      <Tabs items={tabs} value={tab} onChange={setTab} label="أقسام الإدارة" id="admin-tab" />
       <main className="admin-main">
         <AnimatePresence mode="wait" initial={false}>
           <motion.div
@@ -870,12 +862,17 @@ export default function Admin({ session, role }) {
             {tab === 'content' && <Content />}
             {tab === 'games' && <GamesAdmin />}
             {tab === 'log' && <LogTab />}
-            {tab === 'people' && (role === 'manager' ? <Accounts uid={session.user.id} /> : <People role={role} />)}
+            {tab === 'people' && (role === 'manager' ? <Accounts uid={uid} /> : <People role={role} />)}
             {tab === 'import' && <ImportStudents />}
             {tab === 'groups' && <Groups role={role} />}
-            {tab === 'sessions' && <Sessions />}
-            {tab === 'attendance' && <Attendance />}
-            {tab === 'assign' && <Assignments />}
+            {tab === 'mygroups' && <MyGroups uid={uid} role={role} />}
+            {tab === 'sessions' && <Sessions uid={uid} role={role} />}
+            {tab === 'attendance' && <QuickAttendance uid={uid} role={role} />}
+            {tab === 'grading' && <Grading uid={uid} />}
+            {tab === 'announce' && <Announcements uid={uid} role={role} />}
+            {tab === 'messages' && <Inbox uid={uid} />}
+            {tab === 'absences' && <Absences />}
+            {tab === 'assign' && <Assignments uid={uid} role={role} />}
             {tab === 'subs' && <Subscriptions role={role} />}
           </motion.div>
         </AnimatePresence>
