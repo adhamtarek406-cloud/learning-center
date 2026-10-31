@@ -19,7 +19,7 @@ export function NewPassword({ onDone }) {
   return (
     <div className="login-wrap">
       <motion.form className="login-card" onSubmit={submit} initial={{ opacity: 0, y: 28 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.8, ease: EASE }}>
-        <Logo size={56} />
+        <div className="login-brand"><Logo size={56} /><div className="brand-name">شاطر<small>Shater</small></div></div>
         <h1>كلمة سر جديدة</h1>
         <label>
           اكتب كلمة السر الجديدة
@@ -56,7 +56,7 @@ export default function Login() {
   return (
     <div className="login-wrap">
       <motion.form className="login-card" onSubmit={submit} initial={{ opacity: 0, y: 28, scale: 0.97 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ duration: 0.8, ease: EASE }}>
-        <Logo size={56} />
+        <div className="login-brand"><Logo size={56} /><div className="brand-name">شاطر<small>Shater</small></div></div>
         <h1>{mode === 'login' ? 'أهلاً بيك' : 'إنشاء حساب'}</h1>
         {mode === 'signup' && (
           <label>

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { supabase } from './supabase.js'
-import { Tabs, container, item } from './ui.jsx'
+import { Tabs, container, item, Empty } from './ui.jsx'
 import { fmtDT, fmtD, num, q, useLoad, Notice, Modal, logAct } from './adminkit.jsx'
 import { TYPES, typeOf, pointsOf, isCorrect, answerText, keyText } from './questions.js'
 import { platformOf, newJitsiRoom } from './meet.js'
@@ -294,7 +294,7 @@ export function Grading({ uid }) {
       </div>
       <Notice err={err} />
       {d && d.subs.map((s) => <GradeCard key={s.id} s={s} keys={d.keys[s.assignment_id]} uid={uid} onDone={load} />)}
-      {d && d.subs.length === 0 && <p className="muted">{mode === 'todo' ? 'مفيش حاجة مستنية تصحيح. برافو!' : 'لسه مفيش تسليمات اتصححت.'}</p>}
+      {d && d.subs.length === 0 && (mode === 'todo' ? <Empty small art="no-assignments" title="مفيش حاجة مستنية تصحيح">برافو!</Empty> : <p className="muted">لسه مفيش تسليمات اتصححت.</p>)}
     </section>
   )
 }
@@ -452,7 +452,7 @@ export function Inbox({ uid }) {
           {t.unread > 0 && <span className="pill red">{num(t.unread)} جديد</span>}
         </button>
       ))}
-      {threads.length === 0 && <p className="muted">مفيش رسايل لسه.</p>}
+      {threads.length === 0 && <Empty small art="no-messages" title="مفيش رسايل لسه">أول ما ولي أمر يبعت رسالة هتظهر هنا.</Empty>}
     </section>
   )
 }

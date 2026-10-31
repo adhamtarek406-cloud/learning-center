@@ -71,3 +71,24 @@ export function Tabs({ items, value, onChange, label, id, flat, sub }) {
     </nav>
   )
 }
+
+const BRAND = './brand/'
+/** شاشة فاضية برسمة من هوية شاطر */
+export function Empty({ art, title, children, small }) {
+  return (
+    <div className={'empty' + (small ? ' small' : '')}>
+      <img src={`${BRAND}${art}.svg`} alt="" width={small ? 150 : 200} height={small ? 112 : 150} loading="lazy" />
+      {title && <div className="strong">{title}</div>}
+      {children && <p className="muted">{children}</p>}
+    </div>
+  )
+}
+
+/** رقم المركز: ميدالية لأول ٣ */
+export function Rank({ i, fmt }) {
+  if (i < 3) return <img className="rank-medal" src={`${BRAND}medal-${['gold', 'silver', 'bronze'][i]}.svg`} alt={`المركز ${fmt(i + 1)}`} width="34" height="34" />
+  return <span className="rank">{fmt(i + 1)}</span>
+}
+
+const BADGE_ART = { first_game: 'first-game', points_100: 'points-100', points_1000: 'points-1000', first_submit: 'first-homework', perfect: 'full-score', streak_3: 'streak-3', streak_7: 'streak-7' }
+export const badgeArt = (code, locked) => (BADGE_ART[code] ? `${BRAND}badge-${BADGE_ART[code]}${locked ? '-locked' : ''}.svg` : null)

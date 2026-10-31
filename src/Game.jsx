@@ -70,6 +70,7 @@ export default function Game({ game, playedToday, onBack }) {
       <div className="solve">
         <h1>{game.name}</h1>
         <section className="card">
+          <img className="result-art" src="./brand/time-up.svg" alt="" width="200" height="150" />
           <h2>{phase === 'saving' ? 'بنحفظ نتيجتك...' : 'خلص الوقت!'}</h2>
           {phase === 'done' && (
             <>

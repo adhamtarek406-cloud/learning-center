@@ -8,7 +8,7 @@ import Teachers from './Teachers.jsx'
 import { openSession, platformOf } from './meet.js'
 import { StudentActivities, ActivityView } from './Activities.jsx'
 import { motion } from 'framer-motion'
-import { container, item, rowItem, CountUp, GoIcon, Progress, Tabs } from './ui.jsx'
+import { container, item, rowItem, CountUp, GoIcon, Progress, Tabs, Empty, Rank, badgeArt } from './ui.jsx'
 
 const fmt = (n) => Number(n ?? 0).toLocaleString('ar-EG')
 const dayName = new Intl.DateTimeFormat('ar-EG', { weekday: 'long' })
@@ -92,7 +92,7 @@ export default function Student({ session }) {
         supabase.from('sessions').select(SEL).gte('starts_at', nowIso).order('starts_at').limit(30),
         supabase.from('sessions').select(SEL).lt('starts_at', nowIso).order('starts_at', { ascending: false }).limit(10),
         supabase.rpc('leaderboard'),
-        supabase.from('student_badges').select('awarded_at, badges(name, rule)').eq('student_id', uid).order('awarded_at', { ascending: false }),
+        supabase.from('student_badges').select('awarded_at, badge_id, badges(code, name, rule)').eq('student_id', uid).order('awarded_at', { ascending: false }),
         supabase.from('announcements').select('id, title, body, author_name, created_at').order('created_at', { ascending: false }).limit(30),
         supabase.rpc('streak_of', { p_student: uid }),
         supabase.from('group_links').select('group_id, url'),
@@ -163,8 +163,8 @@ export default function Student({ session }) {
         <div className="brand">
           <Logo />
           <div>
-            اسم السنتر
-            <small>شعار مؤقت</small>
+            شاطر
+            <small>Shater</small>
           </div>
         </div>
         <nav aria-label="القائمة">
@@ -256,7 +256,7 @@ export default function Student({ session }) {
             {game ? (
               <>
                 <div className="challenge">
-                  <svg width="72" height="72" viewBox="0 0 72 72" role="img" aria-label="أيقونة اللعبة"><rect width="72" height="72" rx="20" fill="#7A66E8" /><path d="M20 26h32M20 36h22M20 46h28" stroke="#fff" strokeWidth="5" strokeLinecap="round" /><circle cx="52" cy="46" r="7" fill="#FFC24B" /></svg>
+                  <svg width="72" height="72" viewBox="0 0 72 72" role="img" aria-label="أيقونة اللعبة"><rect width="72" height="72" rx="20" fill="#7A66E8" /><path d="M20 26h32M20 36h22M20 46h28" stroke="#fff" strokeWidth="5" strokeLinecap="round" /><circle cx="52" cy="46" r="7" fill="#FFB800" /></svg>
                   <div className="grow">
                     <div className="strong">{game.name}</div>
                     <div className="muted">{game.description}</div>
@@ -281,8 +281,8 @@ export default function Student({ session }) {
                   const me = r.first_name === myFirst
                   return (
                     <motion.li variants={rowItem} key={i} className={me ? 'me' : i === 0 ? 'first' : ''}>
-                      <span className="rank">{fmt(i + 1)}</span>
-                      <span className="grow">{r.first_name}{me ? ' (إنتي)' : ''}</span>
+                      <Rank i={i} fmt={fmt} />
+                      <span className="grow">{r.first_name}{me ? ' (إنت)' : ''}</span>
                       <b>{fmt(r.score)}</b>
                     </motion.li>
                   )
@@ -307,7 +307,7 @@ export default function Student({ session }) {
                 </div>
               ))
             ) : (
-              <p className="muted">خلصت كل الواجبات. برافو!</p>
+              <Empty small art="no-assignments" title="خلّصت كل الواجبات">برافو عليك!</Empty>
             )}
           </motion.section>
 
@@ -338,7 +338,7 @@ export default function Student({ session }) {
                 <span className={`pill ${sub.status === 'active' ? 'green' : ''}`}>{sub.status === 'active' ? 'ساري' : 'غير ساري'}</span>
               </div>
             ) : (
-              <p className="muted">مفيش اشتراك متسجل لحد دلوقتي. الإدارة هتفعّله بعد الدفع.</p>
+              <Empty small art="not-subscribed" title="لسه مشتركتش">الإدارة هتفعّل الاشتراك بعد الدفع.</Empty>
             )}
           </motion.section>
         </motion.div>
@@ -353,15 +353,15 @@ export default function Student({ session }) {
 }
 
 function BoardList({ rows, myFirst }) {
-  if (!rows.length) return <p className="muted">لسه محدش لعب. كون إنت الأول!</p>
+  if (!rows.length) return <Empty small art="time-up" title="لسه محدش لعب">كون إنت الأول!</Empty>
   return (
     <motion.ol className="board" variants={container} initial="hidden" animate="visible">
       {rows.map((r, i) => {
         const me = r.first_name === myFirst
         return (
           <motion.li variants={rowItem} key={i} className={me ? 'me' : i === 0 ? 'first' : ''}>
-            <span className="rank">{fmt(i + 1)}</span>
-            <span className="grow">{r.first_name}{me ? ' (إنتي)' : ''}</span>
+            <Rank i={i} fmt={fmt} />
+            <span className="grow">{r.first_name}{me ? ' (إنت)' : ''}</span>
             <b>{fmt(r.score)}</b>
           </motion.li>
         )
@@ -392,7 +392,7 @@ function Pages({ links, sec, myFirst, upcoming, past, assignments, allResults, g
               </div>
               {(x.live_url || links[x.group_id]) ? <button className="btn-outline" onClick={() => openSession(x.id, (m) => alert(m))}>ادخل • {platformOf(x.live_url || links[x.group_id])?.label}</button> : <span className="muted small">الرابط بيظهر قبلها</span>}
             </div>
-          )) : <p className="muted">مفيش حصص قادمة متسجلة.</p>}
+          )) : <Empty art="no-sessions" title="مفيش حصص قريبة">هنبلغك أول ما تتحدد حصة جديدة.</Empty>}
         </motion.section>
         <motion.section variants={item} className="card">
           <h2>حصص فاتت</h2>
@@ -422,7 +422,7 @@ function Pages({ links, sec, myFirst, upcoming, past, assignments, allResults, g
               </div>
               <button className="btn-outline" onClick={() => onAssign(a)}>ابدأ</button>
             </div>
-          )) : <p className="muted">خلصت كل الواجبات. برافو!</p>}
+          )) : <Empty art="no-assignments" title="مفيش واجبات مطلوبة">خلّصت كل حاجة، برافو عليك!</Empty>}
         </motion.section>
         <motion.section variants={item} className="card">
           <h2>اللي سلّمته</h2>
@@ -460,7 +460,7 @@ function Pages({ links, sec, myFirst, upcoming, past, assignments, allResults, g
             const max = g.max_daily_tries ?? 5
             return (
               <div className="challenge" key={g.id}>
-                <svg width="72" height="72" viewBox="0 0 72 72" role="img" aria-label="أيقونة اللعبة"><rect width="72" height="72" rx="20" fill="#7A66E8" /><path d="M20 26h32M20 36h22M20 46h28" stroke="#fff" strokeWidth="5" strokeLinecap="round" /><circle cx="52" cy="46" r="7" fill="#FFC24B" /></svg>
+                <svg width="72" height="72" viewBox="0 0 72 72" role="img" aria-label="أيقونة اللعبة"><rect width="72" height="72" rx="20" fill="#7A66E8" /><path d="M20 26h32M20 36h22M20 46h28" stroke="#fff" strokeWidth="5" strokeLinecap="round" /><circle cx="52" cy="46" r="7" fill="#FFB800" /></svg>
                 <div className="grow">
                   <div className="strong">{g.name}</div>
                   <div className="muted">{g.description}</div>
@@ -474,12 +474,7 @@ function Pages({ links, sec, myFirst, upcoming, past, assignments, allResults, g
         </motion.section>
         <motion.section variants={item} className="card">
           <h2>شاراتي</h2>
-          {badges.length ? badges.map((b, i) => (
-            <div className="row" key={i}>
-              <div className="grow"><div className="strong">{b.badges?.name}</div>{b.badges?.rule && <div className="muted small">{b.badges.rule}</div>}</div>
-              <span className="pill gold">{dateFmt.format(new Date(b.awarded_at))}</span>
-            </div>
-          )) : <p className="muted">لسه معاكش شارات. العب وذاكر وهتاخد شارات من المدرس.</p>}
+          <BadgeGrid mine={badges} />
         </motion.section>
       </>
     )
@@ -535,7 +530,7 @@ function Pages({ links, sec, myFirst, upcoming, past, assignments, allResults, g
           </div>
           <span className={`pill ${x.status === 'active' ? 'green' : ''}`}>{STATUS_AR[x.status] ?? x.status}</span>
         </div>
-      )) : <p className="muted">مفيش اشتراك متسجل لحد دلوقتي. الإدارة هتفعّله بعد الدفع.</p>}
+      )) : <Empty art="not-subscribed" title="لسه مشتركتش">اختار مدرسك من "اختار مدرسك"، والإدارة هتفعّل الاشتراك بعد الدفع.</Empty>}
       <p className="muted small">لتجديد الاشتراك أو التحويل بين الخطط كلّم إدارة السنتر.</p>
     </motion.section>
   )
@@ -582,5 +577,28 @@ function Me({ profile, email, onSaved }) {
         </form>
       </motion.section>
     </>
+  )
+}
+
+/** كل الشارات: اللي اتكسبت ملونة، والباقي رمادي */
+function BadgeGrid({ mine }) {
+  const [all, setAll] = useState(null)
+  useEffect(() => { supabase.from('badges').select('id, code, name, rule').then(({ data }) => setAll(data ?? [])) }, [])
+  if (!all) return <p className="muted">جاري التحميل...</p>
+  const got = Object.fromEntries(mine.map((b) => [b.badge_id, b]))
+  const list = [...all].sort((a, b) => (got[b.id] ? 1 : 0) - (got[a.id] ? 1 : 0))
+  return (
+    <div className="badge-grid">
+      {list.map((b) => {
+        const g = got[b.id]; const art = badgeArt(b.code, !g)
+        return (
+          <div key={b.id} className={'badge-tile' + (g ? '' : ' locked')} title={b.rule ?? ''}>
+            {art ? <img src={art} alt="" width="88" height="88" /> : <span className="pill gold">★</span>}
+            <div className="strong">{b.name}</div>
+            <div className="muted small">{g ? `اتكسبت ${dateFmt.format(new Date(g.awarded_at))}` : b.rule}</div>
+          </div>
+        )
+      })}
+    </div>
   )
 }

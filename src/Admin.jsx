@@ -835,7 +835,7 @@ export default function Admin({ session, role }) {
   return (
     <div className="admin">
       <header className="admin-top">
-        <div className="brand"><Logo size={40} /><div>اسم السنتر<small>لوحة الإدارة • {ROLE_AR[role]}</small></div></div>
+        <div className="brand"><Logo size={40} /><div>شاطر<small>لوحة الإدارة • {ROLE_AR[role]}</small></div></div>
         <div className="inline">
           <button className="btn-link" onClick={() => setAsStudent(true)}>شوف شاشة الطالب</button>
           <button className="btn-link" onClick={() => supabase.auth.signOut()}>تسجيل الخروج</button>

@@ -37,7 +37,7 @@ export function Stars({ value, size = 16 }) {
 export function Avatar({ name, photo, size = 64 }) {
   return photo
     ? <img className="t-photo" src={photo} alt={`صورة ${name}`} width={size} height={size} style={{ width: size, height: size }} />
-    : <div className="t-photo t-initial" style={{ width: size, height: size, fontSize: size * 0.4 }} aria-hidden="true">{(name ?? '?').slice(0, 1)}</div>
+    : <img className="t-photo" src="./brand/avatar-teacher-default.svg" alt="" width={size} height={size} style={{ width: size, height: size }} />
 }
 
 /** اختيار الصف */

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { supabase } from './supabase.js'
 import Logo from './Logo.jsx'
 import { motion } from 'framer-motion'
-import { Tabs, container, item } from './ui.jsx'
+import { Tabs, container, item, Empty } from './ui.jsx'
 import { Thread } from './Staff.jsx'
 import Teachers from './Teachers.jsx'
 
@@ -63,7 +63,7 @@ export default function Parent({ session }) {
   return (
     <div className="admin">
       <header className="admin-top">
-        <div className="brand"><Logo size={40} /><div>اسم السنتر<small>ولي الأمر</small></div></div>
+        <div className="brand"><Logo size={40} /><div>شاطر<small>ولي الأمر</small></div></div>
         <div className="inline">
           {rep && tab === 'report' && <button className="btn-link" onClick={() => window.print()}>طباعة التقرير</button>}
           <button className="btn-link" onClick={() => supabase.auth.signOut()}>تسجيل الخروج</button>
@@ -173,7 +173,7 @@ export default function Parent({ session }) {
                       <div className="row" key={i}><div className="grow">{num(p.amount)} ج.م</div><span className="muted small">{fmtD(p.paid_at ?? p.created_at)}</span><span className={`pill ${p.status === 'paid' ? 'green' : ''}`}>{PAY[p.status] ?? p.status}</span></div>
                     )) : <p className="muted small">مفيش مدفوعات متسجلة للاشتراك ده.</p>}
                   </div>
-                )) : <p className="muted">مفيش اشتراك متسجل. كلّم إدارة السنتر.</p>}
+                )) : <Empty small art="not-subscribed" title="مفيش اشتراك متسجل">اختار مدرس من "المدرسين" أو كلّم إدارة شاطر.</Empty>}
                 <p className="muted small">للتجديد أو أي استفسار عن الدفع كلّم إدارة السنتر.</p>
               </section>
             )}

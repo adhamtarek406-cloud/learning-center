@@ -155,7 +155,9 @@ export default function Solve({ assignment, onBack, preview }) {
       {phase === 'done' && done && (
         <section className="card">
           <h2>{done.preview ? 'نتيجة المعاينة' : done.auto ? 'الوقت خلص واتسلّمت إجاباتك' : 'اتسلّم'}</h2>
+          {done.score != null && <img className="result-art" src={`./brand/${done.score >= 80 ? 'high-score' : 'mid-score'}.svg`} alt="" width="200" height="150" />}
           {done.score != null && <p className="big">{fmt(done.score)}٪</p>}
+          {done.score != null && <p className="strong">{done.score >= 80 ? 'برافو! إنت طاير 🚀' : done.score >= 50 ? 'كويس، كمّل وهتوصل ⚡' : 'ولا يهمك، راجع وجرّب تاني 💪'}</p>}
           <p className="muted">
             {done.score != null && done.essay ? 'ده تصحيح الأسئلة التلقائية. الأسئلة المقالية المدرس هيصححها ويظهر لك التقييم النهائي.'
               : done.score != null ? 'دي درجتك. تقدر تراجع إجاباتك من صفحة الواجبات.'
