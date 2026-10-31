@@ -44,7 +44,7 @@ button:disabled { opacity: .55; cursor: not-allowed; }
 .brand { display: flex; align-items: center; gap: 12px; font-weight: 800; font-size: 20px; line-height: 1.2; }
 .brand small { display: block; font-weight: 600; font-size: 12px; color: #5A4FA0; }
 .side nav { display: flex; flex-direction: column; gap: 6px; }
-.nav { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 999px; color: var(--ink2); font-weight: 600; font-size: 16px; min-height: 46px; text-decoration: none; transition: background-color .4s var(--ease), transform .5s var(--ease); }
+.nav { width: 100%; border: 0; background: transparent; font-family: inherit; text-align: start; cursor: pointer; display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 999px; color: var(--ink2); font-weight: 600; font-size: 16px; min-height: 46px; text-decoration: none; transition: background-color .4s var(--ease), transform .5s var(--ease); }
 .nav:hover { background: rgba(91,67,214,.07); transform: translateX(-3px); }
 .nav.active { background: var(--brand); color: #fff; font-weight: 700; box-shadow: 0 12px 24px -14px rgba(91,67,214,.8); }
 .nav.active:hover { transform: none; }
@@ -138,7 +138,7 @@ tbody tr:hover { background: rgba(91,67,214,.035); }
 .btn-danger { background: #fff; color: #8A1C1C; border: 2px solid #C94A4A; border-radius: 10px; padding: 6px 14px; min-height: 40px; font-weight: 700; font-size: 13px; }
 .att { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; max-width: 520px; }
 .att li { display: flex; justify-content: space-between; align-items: center; background: #F6F4FF; border-radius: 12px; padding: 8px 14px; }
-.floating { position: fixed; top: 12px; inset-inline-start: 12px; z-index: 30; padding: 8px 18px; min-height: 44px; }
+.floating { position: fixed; bottom: 16px; inset-inline-end: 16px; z-index: 30; box-shadow: 0 16px 32px -12px rgba(91,67,214,.7); padding: 8px 18px; min-height: 44px; }
 @media (max-width: 860px) { .admin-top, .admin-main { padding-inline: 16px; } }
 
 /* ===== حل الواجب واللعبة ===== */
@@ -170,3 +170,6 @@ tbody tr:hover { background: rgba(91,67,214,.035); }
 .stat span { font-size: 14px; color: #4A3F92; }
 @media (max-width: 860px) { .stats { grid-template-columns: 1fr 1fr; gap: 16px; } .grid { gap: 20px; } main { gap: 22px; } }
 @media print { .admin-top, .tabs, button { display: none !important; } body { background: #fff; } body::before { display: none; } .card, .stat, .hero { box-shadow: none; border: 1px solid #ccc; } }
+
+.solve > .btn-link, .game-top .btn-link { align-self: flex-start; }
+a.btn-outline { display: inline-flex; align-items: center; justify-content: center; text-decoration: none; white-space: nowrap; }
