@@ -4,6 +4,34 @@ import Logo from './Logo.jsx'
 import { motion } from 'framer-motion'
 import { EASE, GoIcon } from './ui.jsx'
 
+export function NewPassword({ onDone }) {
+  const [pw, setPw] = useState('')
+  const [msg, setMsg] = useState('')
+  const [busy, setBusy] = useState(false)
+  async function submit(e) {
+    e.preventDefault()
+    setBusy(true); setMsg('')
+    const { error } = await supabase.auth.updateUser({ password: pw })
+    setBusy(false)
+    if (error) setMsg('حصلت مشكلة: ' + error.message)
+    else onDone()
+  }
+  return (
+    <div className="login-wrap">
+      <motion.form className="login-card" onSubmit={submit} initial={{ opacity: 0, y: 28 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.8, ease: EASE }}>
+        <Logo size={56} />
+        <h1>كلمة سر جديدة</h1>
+        <label>
+          اكتب كلمة السر الجديدة
+          <input type="password" dir="ltr" minLength={8} value={pw} onChange={(e) => setPw(e.target.value)} required autoComplete="new-password" />
+        </label>
+        {msg && <p className="msg" role="alert">{msg}</p>}
+        <button className="btn-primary" disabled={busy}>{busy ? 'لحظة...' : 'حفظ ودخول'}</button>
+      </motion.form>
+    </div>
+  )
+}
+
 export default function Login() {
   const [mode, setMode] = useState('login')
   const [name, setName] = useState('')
@@ -49,6 +77,13 @@ export default function Login() {
         <button className="btn-primary" disabled={busy}>
           {busy ? 'لحظة...' : <>{mode === 'login' ? 'دخول' : 'إنشاء الحساب'}<GoIcon /></>}
         </button>
+        {mode === 'login' && (
+          <button type="button" className="btn-link" onClick={async () => {
+            if (!email) { setMsg('اكتب الإيميل الأول، وبعدين اضغط "نسيت كلمة السر".'); return }
+            const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: location.origin + location.pathname })
+            setMsg(error ? 'حصلت مشكلة: ' + error.message : 'لو الإيميل مسجل هيوصلك رابط تغيير كلمة السر.')
+          }}>نسيت كلمة السر؟</button>
+        )}
         <button type="button" className="btn-link" onClick={() => { setMode(mode === 'login' ? 'signup' : 'login'); setMsg('') }}>
           {mode === 'login' ? 'معندكش حساب؟ سجّل' : 'عندك حساب؟ ادخل'}
         </button>

@@ -173,3 +173,16 @@ tbody tr:hover { background: rgba(91,67,214,.035); }
 
 .solve > .btn-link, .game-top .btn-link { align-self: flex-start; }
 a.btn-outline { display: inline-flex; align-items: center; justify-content: center; text-decoration: none; white-space: nowrap; }
+
+/* ===== الحسابات ===== */
+.msg.ok { background: #E4F5EC; color: #14613A; }
+.pill.red { background: #FBE0E0; color: #8A1C1C; }
+.pill.gold { background: #FFE9B8; color: #6B4A00; }
+.fld.mini { min-height: 34px; font-size: 13px; padding: 4px 10px; border-radius: 999px; }
+tr.off td { opacity: .6; }
+.modal-back { position: fixed; inset: 0; z-index: 40; display: grid; place-items: center; padding: 16px; background: rgba(42,31,107,.35); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); overflow-y: auto; }
+.modal { width: 100%; max-width: 520px; max-height: calc(100dvh - 32px); overflow-y: auto; }
+.modal .form { flex-direction: column; align-items: stretch; }
+.modal .form label { min-width: 0; }
+.modal .fld { width: 100%; }
+.card-head .tabs.flat { max-width: 100%; }

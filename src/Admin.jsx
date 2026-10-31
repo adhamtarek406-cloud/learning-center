@@ -1,32 +1,12 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useState } from 'react'
 import { supabase } from './supabase.js'
 import Logo from './Logo.jsx'
 import Student from './Student.jsx'
 import { AnimatePresence, motion } from 'framer-motion'
 import { Tabs, EASE } from './ui.jsx'
 
-const ROLE_AR = { manager: 'مدير', teacher: 'مدرس', assistant: 'مساعد', student: 'طالب', parent: 'ولي أمر' }
-const fmtDT = (iso) => new Intl.DateTimeFormat('ar-EG', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(iso))
-const fmtD = (iso) => new Intl.DateTimeFormat('ar-EG', { dateStyle: 'medium' }).format(new Date(iso))
-const num = (n) => Number(n ?? 0).toLocaleString('ar-EG')
-
-async function q(p) {
-  const r = await p
-  if (r.error) throw new Error(r.error.message)
-  return r.data
-}
-
-function useLoad(fn, deps = []) {
-  const [data, setData] = useState(null)
-  const [err, setErr] = useState('')
-  const load = useCallback(() => fn().then((d) => { setData(d); setErr('') }).catch((e) => setErr(e.message)), deps) // eslint-disable-line
-  useEffect(() => { load() }, [load])
-  return [data, load, err]
-}
-
-function Notice({ err }) {
-  return err ? <p className="msg" role="alert">حصلت مشكلة: {err}</p> : null
-}
+import { ROLE_AR, fmtDT, fmtD, num, q, useLoad, Notice } from './adminkit.jsx'
+import Accounts from './Accounts.jsx'
 
 /* ---------------- الطلاب والفريق ---------------- */
 function People({ role }) {
@@ -781,7 +761,7 @@ function ImportStudents() {
 
 /* ---------------- الغلاف ---------------- */
 const TABS = [
-  ['people', 'الطلاب والفريق'],
+  ['people', 'الحسابات'],
   ['import', 'استيراد طلبة'],
   ['groups', 'المجموعات'],
   ['sessions', 'الحصص'],
@@ -818,7 +798,7 @@ export default function Admin({ session, role }) {
             animate={{ opacity: 1, y: 0, transition: { duration: 0.55, ease: EASE } }}
             exit={{ opacity: 0, y: -8, transition: { duration: 0.18, ease: EASE } }}
           >
-            {tab === 'people' && <People role={role} />}
+            {tab === 'people' && (role === 'manager' ? <Accounts uid={session.user.id} /> : <People role={role} />)}
             {tab === 'import' && <ImportStudents />}
             {tab === 'groups' && <Groups role={role} />}
             {tab === 'sessions' && <Sessions />}
