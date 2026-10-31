@@ -5,6 +5,7 @@ import Solve from './Solve.jsx'
 import Game from './Game.jsx'
 import Review from './Review.jsx'
 import Teachers from './Teachers.jsx'
+import { openSession, platformOf } from './meet.js'
 import { motion } from 'framer-motion'
 import { container, item, rowItem, CountUp, GoIcon, Progress, Tabs } from './ui.jsx'
 
@@ -52,6 +53,7 @@ export default function Student({ session }) {
   const [view, setView] = useState(null)
   const [tick, setTick] = useState(0)
   const [sec, setSec] = useState('home')
+  const [joinErr, setJoinErr] = useState('')
   const seenKey = `seen_${uid}`
   const [seen, setSeen] = useState(() => { try { return localStorage.getItem(seenKey) || '1970' } catch { return '1970' } })
   const [seenBefore, setSeenBefore] = useState('1970')
@@ -70,8 +72,8 @@ export default function Student({ session }) {
     ;(async () => {
       const nowIso = new Date().toISOString()
       const startOfDay = new Date(new Date().setHours(0, 0, 0, 0)).toISOString()
-      const SEL = 'id, starts_at, topic, live_url, recording_url, groups(name, schedule, levels(name, subjects(name)))'
-      const [prof, sess, assigns, subs, games, scores, todayScores, mySubs, upc, past, overall, myBadges, anns, streak] = await Promise.all([
+      const SEL = 'id, group_id, starts_at, topic, live_url, recording_url, groups(name, schedule, levels(name, subjects(name)))'
+      const [prof, sess, assigns, subs, games, scores, todayScores, mySubs, upc, past, overall, myBadges, anns, streak, glinks] = await Promise.all([
         supabase.from('profiles').select('*').eq('id', uid).single(),
         supabase
           .from('sessions')
@@ -91,6 +93,7 @@ export default function Student({ session }) {
         supabase.from('student_badges').select('awarded_at, badges(name, rule)').eq('student_id', uid).order('awarded_at', { ascending: false }),
         supabase.from('announcements').select('id, title, body, author_name, created_at').order('created_at', { ascending: false }).limit(30),
         supabase.rpc('streak_of', { p_student: uid }),
+        supabase.from('group_links').select('group_id, url'),
       ])
       const bad = [prof, sess, assigns, subs, games, scores].find((r) => r.error)
       if (bad) { if (alive) setErr(bad.error.message); return }
@@ -122,6 +125,7 @@ export default function Student({ session }) {
           anns: anns.data ?? [],
           streak: streak.data ?? { current: 0, best: 0 },
           allAssignments: assigns.data ?? [],
+          links: Object.fromEntries((glinks.data ?? []).map((l) => [l.group_id, l.url])),
           board,
           points: (scores.data ?? []).reduce((s, r) => s + r.score, 0),
           playedToday: game ? playedMap[game.id] ?? 0 : 0,
@@ -134,7 +138,7 @@ export default function Student({ session }) {
   if (err) return <div className="center-msg">حصلت مشكلة في تحميل البيانات: {err}</div>
   if (!d) return <div className="center-msg">جاري التحميل...</div>
 
-  const { profile, session: next, assignments, sub, game, board, points, playedToday, results, subs, upcoming, past, overall, scoreRows, allResults, games: gameList, boards, playedMap, badges, anns, streak, allAssignments } = d
+  const { profile, session: next, assignments, sub, game, board, points, playedToday, results, subs, upcoming, past, overall, scoreRows, allResults, games: gameList, boards, playedMap, badges, anns, streak, allAssignments, links } = d
   const back = () => { setView(null); setTick((t) => t + 1) }
   if (view?.type === 'assignment') return <Solve assignment={view.a} onBack={back} />
   if (view?.type === 'review') return <Review assignmentId={view.id} onBack={() => setView(null)} />
@@ -213,8 +217,12 @@ export default function Student({ session }) {
                 <div className="hero-title">{level?.subjects?.name} • {level?.name}</div>
                 <div className="hero-sub">{next.groups?.name}</div>
               </div>
-              {next.live_url ? (
-                <a className="btn-gold" href={next.live_url} target="_blank" rel="noreferrer">ادخل الحصة<GoIcon /></a>
+              {(next.live_url || links[next.group_id]) ? (
+                <div className="join-box">
+                  <button className="btn-gold" onClick={() => openSession(next.id, setJoinErr)}>ادخل الحصة<GoIcon /></button>
+                  <span className="hero-tip">{platformOf(next.live_url || links[next.group_id])?.label}{platformOf(next.live_url || links[next.group_id])?.tip ? ` • ${platformOf(next.live_url || links[next.group_id]).tip}` : ''}</span>
+                  {joinErr && <span className="chip soft">{joinErr}</span>}
+                </div>
               ) : (
                 <span className="chip soft">رابط الحصة بيظهر قبلها بشوية</span>
               )}
@@ -334,7 +342,7 @@ export default function Student({ session }) {
         </>)}
 
         {sec !== 'home' && (
-          <Pages key={sec} sec={sec} {...{ myFirst, upcoming, past, assignments, allResults, gameList, boards, playedMap, badges, overall, scoreRows, points, subs, news, seenBefore, streak, profile }} uid={uid} email={session.user.email} onSaved={() => setTick((t) => t + 1)} onReview={(id) => setView({ type: 'review', id })} onAssign={(a) => setView({ type: 'assignment', a })} onPlay={(g) => setView({ type: 'game', game: g })} />
+          <Pages key={sec} sec={sec} {...{ links, myFirst, upcoming, past, assignments, allResults, gameList, boards, playedMap, badges, overall, scoreRows, points, subs, news, seenBefore, streak, profile }} uid={uid} email={session.user.email} onSaved={() => setTick((t) => t + 1)} onReview={(id) => setView({ type: 'review', id })} onAssign={(a) => setView({ type: 'assignment', a })} onPlay={(g) => setView({ type: 'game', game: g })} />
         )}
       </main>
     </div>
@@ -361,7 +369,7 @@ function BoardList({ rows, myFirst }) {
 
 const STATUS_AR = { active: 'ساري', paused: 'موقوف', expired: 'منتهي', cancelled: 'ملغي' }
 
-function Pages({ sec, myFirst, upcoming, past, assignments, allResults, gameList, boards, playedMap, badges, overall, scoreRows, points, subs, news, seenBefore, streak, profile, uid, email, onSaved, onReview, onAssign, onPlay }) {
+function Pages({ links, sec, myFirst, upcoming, past, assignments, allResults, gameList, boards, playedMap, badges, overall, scoreRows, points, subs, news, seenBefore, streak, profile, uid, email, onSaved, onReview, onAssign, onPlay }) {
   const [bt, setBt] = useState(gameList[0]?.id ?? 'all')
   const lv = (x) => `${x.groups?.levels?.subjects?.name ?? ''} • ${x.groups?.levels?.name ?? ''}`
   const wrap = (children) => (
@@ -379,7 +387,7 @@ function Pages({ sec, myFirst, upcoming, past, assignments, allResults, gameList
                 <div className="strong">{whenLabel(x.starts_at)}</div>
                 <div className="muted small">{lv(x)} • {x.groups?.name}{x.topic ? ` • ${x.topic}` : ''}</div>
               </div>
-              {x.live_url ? <a className="btn-outline" href={x.live_url} target="_blank" rel="noreferrer">ادخل</a> : <span className="muted small">الرابط بيظهر قبلها</span>}
+              {(x.live_url || links[x.group_id]) ? <button className="btn-outline" onClick={() => openSession(x.id, (m) => alert(m))}>ادخل • {platformOf(x.live_url || links[x.group_id])?.label}</button> : <span className="muted small">الرابط بيظهر قبلها</span>}
             </div>
           )) : <p className="muted">مفيش حصص قادمة متسجلة.</p>}
         </motion.section>

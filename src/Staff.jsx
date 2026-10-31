@@ -4,6 +4,7 @@ import { supabase } from './supabase.js'
 import { Tabs, container, item } from './ui.jsx'
 import { fmtDT, fmtD, num, q, useLoad, Notice, Modal, logAct } from './adminkit.jsx'
 import { TYPES, typeOf, pointsOf, isCorrect, answerText, keyText } from './questions.js'
+import { platformOf, newJitsiRoom } from './meet.js'
 
 const gLabel = (g) => (g ? `${g.levels?.subjects?.name ?? ''} ${g.levels?.name ?? ''} • ${g.name}` : '—')
 const GSEL = 'id, name, schedule, teacher_id, active, levels(name, subjects(name))'
@@ -20,12 +21,13 @@ export function MyGroups({ uid, role }) {
   const [d, , err] = useLoad(async () => {
     let gq = supabase.from('groups').select(GSEL).order('name')
     if (role === 'teacher') gq = gq.eq('teacher_id', uid)
-    const [groups, enr, next] = await Promise.all([
+    const [groups, enr, next, links] = await Promise.all([
       q(gq),
       q(supabase.from('enrollments').select('group_id, student_id, profiles(full_name, phone, active)')),
       q(supabase.from('sessions').select('group_id, starts_at, topic').gte('starts_at', new Date().toISOString()).order('starts_at').limit(200)),
+      q(supabase.from('group_links').select('group_id, url')),
     ])
-    return { groups, enr, next }
+    return { groups, enr, next, links: Object.fromEntries(links.map((l) => [l.group_id, l.url])) }
   })
   const [s, setS] = useState('')
   const [open, setOpen] = useState(null)
@@ -50,6 +52,7 @@ export function MyGroups({ uid, role }) {
               </div>
               <div className="muted small">{g.levels?.subjects?.name} • {g.levels?.name}{g.schedule ? ` • ${g.schedule}` : ''}</div>
               <div className="muted small">{nx ? `الحصة الجاية: ${fmtDT(nx.starts_at)}${nx.topic ? ` • ${nx.topic}` : ''}` : 'مفيش حصة قادمة متسجلة'}</div>
+              <GroupLink group={g} url={d.links[g.id]} canEdit={role === 'manager' || (role === 'teacher' && g.teacher_id === uid)} />
               <div className="chips">
                 {studs.map((e) => (
                   <button key={e.student_id} className={`chip-btn${e.profiles?.active === false ? ' off' : ''}`} onClick={() => setOpen({ id: e.student_id, name: e.profiles?.full_name, phone: e.profiles?.phone })}>{e.profiles?.full_name}</button>
@@ -137,6 +140,46 @@ export function StudentFile({ uid, student, onClose }) {
   return <Modal title={`ملف ${student.name}`} onClose={onClose}><div className="modal-wide">{body}</div></Modal>
 }
 
+/** رابط ثابت لحصص المجموعة */
+export function GroupLink({ group, url, canEdit }) {
+  const [v, setV] = useState(url ?? '')
+  const [saved, setSaved] = useState(url ?? '')
+  const [edit, setEdit] = useState(false)
+  const [msg, setMsg] = useState('')
+  const p = platformOf(saved)
+  async function save(val) {
+    setMsg('')
+    const { error } = await supabase.rpc('set_group_link', { p_group: group.id, p_url: val })
+    if (error) setMsg(error.message); else { setSaved(val); setV(val); setEdit(false) }
+  }
+  if (!edit) {
+    return (
+      <div className="glink">
+        <span className="muted small">رابط الحصص:</span>
+        {saved ? <a href={saved} target="_blank" rel="noreferrer" className="pill green">{p?.label ?? 'رابط'} ↗</a> : <span className="pill">مفيش رابط ثابت</span>}
+        {canEdit && <button className="btn-link" onClick={() => setEdit(true)}>{saved ? 'تغيير' : 'إضافة رابط'}</button>}
+        {canEdit && saved && (
+          <button className="btn-link" onClick={() => navigator.clipboard?.writeText(saved).then(() => setMsg('اتنسخ الرابط'), () => setMsg(saved))}>نسخ</button>
+        )}
+        {msg && <span className="muted small">{msg}</span>}
+      </div>
+    )
+  }
+  return (
+    <div className="glink edit">
+      <input className="fld" dir="ltr" placeholder="https://meet.google.com/... أو https://meet.jit.si/..." value={v} onChange={(e) => setV(e.target.value)} />
+      <div className="inline">
+        <button className="btn-outline" onClick={() => setV(newJitsiRoom(group.name))}>اعمل غرفة Jitsi مجانية</button>
+        <button className="btn-primary" onClick={() => save(v.trim())}>حفظ</button>
+        {saved && <button className="btn-link" onClick={() => save('')}>شيل الرابط</button>}
+        <button className="btn-link" onClick={() => { setV(saved); setEdit(false) }}>إلغاء</button>
+      </div>
+      <span className="muted small">الطلبة بيدخلوا بالرابط ده في كل حصة، إلا لو حطيت رابط مختلف لحصة معينة من تبويب "الحصص". Jitsi مجاني لحد ٩٥ دقيقة، وGoogle Meet المجاني لحد ساعة وبعدها يدخلوا تاني من نفس الرابط.</span>
+      {msg && <p className="msg" role="alert">{msg}</p>}
+    </div>
+  )
+}
+
 /* ================= الحضور السريع ================= */
 export function QuickAttendance({ uid, role }) {
   const [d, , err] = useLoad(async () => {
@@ -167,12 +210,14 @@ export function QuickAttendance({ uid, role }) {
     if (!id) return
     try {
       const s = d.sessions.find((x) => x.id === id)
-      const [enr, att] = await Promise.all([
+      const [enr, att, joins] = await Promise.all([
         q(supabase.from('enrollments').select('student_id, profiles(full_name)').eq('group_id', s.group_id)),
         q(supabase.from('attendance').select('student_id, present').eq('session_id', id)),
+        q(supabase.from('session_joins').select('student_id, joined_at').eq('session_id', id)),
       ])
       const map = new Map(att.map((a) => [a.student_id, a.present]))
-      setRows(enr.map((e) => ({ id: e.student_id, name: e.profiles?.full_name ?? '—', present: map.has(e.student_id) ? map.get(e.student_id) : null })).sort((a, b) => a.name.localeCompare(b.name, 'ar')))
+      const jm = new Map(joins.map((j) => [j.student_id, j.joined_at]))
+      setRows(enr.map((e) => ({ id: e.student_id, name: e.profiles?.full_name ?? '—', joined: jm.get(e.student_id) ?? null, present: map.has(e.student_id) ? map.get(e.student_id) : null })).sort((a, b) => a.name.localeCompare(b.name, 'ar')))
     } catch (e) { setMsg(e.message) }
   }
   const setP = (i, v) => { setRows(rows.map((x, j) => (j === i ? { ...x, present: v } : x))); setSaved(false); setOk('') }
@@ -206,12 +251,13 @@ export function QuickAttendance({ uid, role }) {
             <span className="pill green">حاضر {num(present)}</span>
             <span className="pill red">غايب {num(absent)}</span>
             {pending > 0 && <span className="pill">لسه {num(pending)}</span>}
+            {rows.some((r) => r.joined) && <button className="btn-outline" onClick={() => { setRows(rows.map((r) => ({ ...r, present: r.joined ? true : r.present }))); setSaved(false) }}>اللي دخلوا من المنصة حاضرين ({num(rows.filter((r) => r.joined).length)})</button>}
             <button className="btn-link" onClick={() => { setRows(rows.map((r) => ({ ...r, present: r.present ?? true }))); setSaved(false) }}>الباقي حاضر</button>
           </div>
           <ul className="att-quick">
             {rows.map((r, i) => (
               <li key={r.id} className={r.present === false ? 'abs' : r.present ? 'pre' : ''}>
-                <span className="strong grow">{r.name}</span>
+                <span className="strong grow">{r.name}{r.joined && <span className="pill green joined" title="ضغط ادخل الحصة من المنصة">دخل {new Intl.DateTimeFormat('ar-EG', { hour: 'numeric', minute: '2-digit' }).format(new Date(r.joined))}</span>}</span>
                 <div className="seg" role="group" aria-label={`حضور ${r.name}`}>
                   <button type="button" className={r.present === true ? 'on yes' : ''} aria-pressed={r.present === true} onClick={() => setP(i, true)}>حاضر</button>
                   <button type="button" className={r.present === false ? 'on no' : ''} aria-pressed={r.present === false} onClick={() => setP(i, false)}>غايب</button>

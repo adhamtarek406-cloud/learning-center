@@ -293,3 +293,11 @@ tr.off td { opacity: .6; }
 .review-form { display: flex; flex-direction: column; gap: 8px; background: #FBFAFF; border-radius: 18px; padding: 12px; box-shadow: inset 0 0 0 1.5px rgba(91,67,214,.12); }
 .nudge { flex-direction: row; align-items: center; flex-wrap: wrap; background: linear-gradient(135deg, #FFF8E6, #FFFFFF); }
 .grade-pick { align-items: flex-end; }
+
+/* ===== روابط الحصص ===== */
+.glink { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.glink.edit { flex-direction: column; align-items: stretch; background: #FBFAFF; border-radius: 18px; padding: 12px; box-shadow: inset 0 0 0 1.5px rgba(91,67,214,.12); }
+.glink a.pill { text-decoration: none; }
+.join-box { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; max-width: 320px; }
+.hero-tip { font-size: 13px; opacity: .92; }
+.pill.joined { font-size: 11px; padding: 2px 8px; margin-inline-start: 8px; }

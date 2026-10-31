@@ -12,6 +12,7 @@ import GamesAdmin from './GamesAdmin.jsx'
 import Overview, { LogTab } from './Overview.jsx'
 import { MyGroups, QuickAttendance, Grading, GradeCard, Announcements, Inbox, Absences } from './Staff.jsx'
 import AssignmentEditor from './AssignmentEditor.jsx'
+import { isYoutube } from './meet.js'
 import Requests from './Requests.jsx'
 import TeacherPage from './TeacherPage.jsx'
 import Solve from './Solve.jsx'
@@ -274,7 +275,7 @@ function Sessions({ uid, role }) {
           <label>المجموعة<select className="fld" required value={f.group_id} onChange={(e) => setF({ ...f, group_id: e.target.value })}><option value="">اختار...</option>{d.groups.map((g) => <option key={g.id} value={g.id}>{gname(g.id)}</option>)}</select></label>
           <label>الميعاد<input className="fld" type="datetime-local" required value={f.starts_at} onChange={(e) => setF({ ...f, starts_at: e.target.value })} /></label>
           <label>الموضوع<input className="fld" value={f.topic} onChange={(e) => setF({ ...f, topic: e.target.value })} /></label>
-          <label>رابط اللايف<input className="fld" dir="ltr" placeholder="https://" value={f.live_url} onChange={(e) => setF({ ...f, live_url: e.target.value })} /></label>
+          <label>رابط خاص بالحصة دي (اختياري)<input className="fld" dir="ltr" placeholder="فاضي = رابط المجموعة الثابت" value={f.live_url} onChange={(e) => setF({ ...f, live_url: e.target.value })} /></label>
           <button className="btn-primary">إضافة الحصة</button>
         </form>
       </section>
@@ -282,7 +283,7 @@ function Sessions({ uid, role }) {
         <h2>الحصص</h2>
         <div className="tbl-wrap">
           <table>
-            <thead><tr><th>الميعاد</th><th>المجموعة</th><th>الموضوع</th><th>رابط اللايف</th><th>رابط التسجيل</th><th></th></tr></thead>
+            <thead><tr><th>الميعاد</th><th>المجموعة</th><th>الموضوع</th><th>رابط خاص (اختياري)</th><th>رابط التسجيل</th><th></th></tr></thead>
             <tbody>
               {d.sessions.map((s) => (
                 <tr key={s.id}>
@@ -290,7 +291,10 @@ function Sessions({ uid, role }) {
                   <td>{gname(s.group_id)}</td>
                   <td>{s.topic}</td>
                   <td><LinkField value={s.live_url} onSave={(v) => act(() => q(supabase.from('sessions').update({ live_url: v || null }).eq('id', s.id)))} /></td>
-                  <td><LinkField value={s.recording_url} onSave={(v) => act(() => q(supabase.from('sessions').update({ recording_url: v || null }).eq('id', s.id)))} /></td>
+                  <td>
+                    <LinkField value={s.recording_url} onSave={(v) => act(() => q(supabase.from('sessions').update({ recording_url: v || null }).eq('id', s.id)))} />
+                    {!s.recording_url && isYoutube(s.live_url) && new Date(s.starts_at) < new Date() && <button className="btn-link" onClick={() => act(() => q(supabase.from('sessions').update({ recording_url: s.live_url }).eq('id', s.id)))}>البث يبقى هو التسجيل</button>}
+                  </td>
                   <td>
                     <div className="inline">
                       <button className="btn-outline" onClick={() => setEd({ id: s.id, group_id: s.group_id, starts_at: toLocalInput(s.starts_at), topic: s.topic ?? '' })}>تعديل</button>
