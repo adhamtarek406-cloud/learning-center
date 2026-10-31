@@ -787,12 +787,12 @@ const TABS = {
   manager: [
     ['overview', 'نظرة عامة'], ['people', 'الحسابات'], ['import', 'استيراد طلبة'], ['content', 'المحتوى'],
     ['mygroups', 'المجموعات والطلاب'], ['sessions', 'الحصص'], ['attendance', 'الحضور'], ['grading', 'التصحيح'],
-    ['assign', 'الواجبات'], ['activities', 'أنشطة H5P'], ['announce', 'الإعلانات'], ['messages', 'الرسايل'], ['absences', 'الغياب'],
+    ['assign', 'الواجبات'], ['activities', 'أنشطة تفاعلية'], ['announce', 'الإعلانات'], ['messages', 'الرسايل'], ['absences', 'الغياب'],
     ['requests', 'طلبات الاشتراك'], ['subs', 'الاشتراكات'], ['mypage', 'صفحات المدرسين'], ['games', 'الألعاب'], ['log', 'السجل'],
   ],
   teacher: [
     ['mygroups', 'مجموعاتي'], ['sessions', 'الحصص'], ['attendance', 'الحضور'], ['grading', 'التصحيح'],
-    ['assign', 'الواجبات'], ['activities', 'أنشطة H5P'], ['announce', 'الإعلانات'], ['messages', 'الرسايل'], ['absences', 'الغياب'], ['mypage', 'صفحتي'],
+    ['assign', 'الواجبات'], ['activities', 'أنشطة تفاعلية'], ['announce', 'الإعلانات'], ['messages', 'الرسايل'], ['absences', 'الغياب'], ['mypage', 'صفحتي'],
   ],
   assistant: [
     ['overview', 'نظرة عامة'], ['attendance', 'الحضور'], ['grading', 'التصحيح'], ['absences', 'الغياب'],
