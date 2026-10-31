@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
 import { supabase } from './supabase.js'
 import Logo from './Logo.jsx'
+import { motion } from 'framer-motion'
+import { Tabs, container, item } from './ui.jsx'
 
 const num = (n) => Number(n ?? 0).toLocaleString('ar-EG')
 const fmtDT = (iso) => new Intl.DateTimeFormat('ar-EG', { weekday: 'long', day: 'numeric', month: 'long', hour: 'numeric', minute: '2-digit' }).format(new Date(iso))
@@ -54,13 +56,11 @@ export default function Parent() {
         ) : (
           <>
             {kids.length > 1 && (
-              <nav className="tabs" aria-label="الأبناء" style={{ padding: 0 }}>
-                {kids.map((k) => <button key={k.id} className={sel === k.id ? 'tab active' : 'tab'} onClick={() => setSel(k.id)}>{k.full_name.split(' ')[0]}</button>)}
-              </nav>
+              <Tabs flat items={kids.map((k) => [k.id, k.full_name.split(' ')[0]])} value={sel} onChange={setSel} label="الأبناء" id="kid-tab" />
             )}
             {!rep ? <p className="muted">جاري تحميل التقرير...</p> : (
               <>
-                <section className="hero" aria-label="ملخص">
+                <motion.section className="hero" aria-label="ملخص" variants={item} initial="hidden" animate="visible" key={`h${sel}`}>
                   <div>
                     <span className="chip">تقرير آخر ٧ أيام</span>
                     <div className="hero-title">{rep.name}</div>
@@ -68,24 +68,24 @@ export default function Parent() {
                       {rep.next_session ? `الحصة الجاية: ${rep.next_session.subject} · ${rep.next_session.level} — ${fmtDT(rep.next_session.starts_at)}` : 'مفيش حصة قادمة متسجلة'}
                     </div>
                   </div>
-                </section>
+                </motion.section>
 
-                <div className="stats">
-                  <div className="stat"><b>{num(w.attended)} / {num(w.sessions)}</b><span>حصص حضرها</span></div>
-                  <div className="stat"><b>{num(w.submitted)} / {num(w.assigned)}</b><span>واجبات اتسلمت من الجديدة</span></div>
-                  <div className="stat"><b>{w.avg_score == null ? '—' : `${num(w.avg_score)}٪`}</b><span>متوسط الدرجات</span></div>
-                  <div className="stat"><b>{num(w.points)}</b><span>نقاط الألعاب</span></div>
-                </div>
+                <motion.div className="stats" variants={container} initial="hidden" animate="visible" key={`s${sel}`}>
+                  <motion.div variants={item} className="stat"><b>{num(w.attended)} / {num(w.sessions)}</b><span>حصص حضرها</span></motion.div>
+                  <motion.div variants={item} className="stat"><b>{num(w.submitted)} / {num(w.assigned)}</b><span>واجبات اتسلمت من الجديدة</span></motion.div>
+                  <motion.div variants={item} className="stat"><b>{w.avg_score == null ? '—' : `${num(w.avg_score)}٪`}</b><span>متوسط الدرجات</span></motion.div>
+                  <motion.div variants={item} className="stat"><b>{num(w.points)}</b><span>نقاط الألعاب</span></motion.div>
+                </motion.div>
                 {rep.absences_30d > 0 && <p className="msg">غاب {num(rep.absences_30d)} مرة في آخر ٣٠ يوم.</p>}
 
-                <div className="grid">
-                  <section className="card">
+                <motion.div className="grid" variants={container} initial="hidden" animate="visible" key={`g${sel}`}>
+                  <motion.section variants={item} className="card">
                     <h2>واجبات لسه ماتسلمتش</h2>
                     {rep.missing.length ? rep.missing.map((m, i) => (
                       <div className="row" key={i}><div className="grow strong">{m.title}</div><span className="muted small">{m.due_at ? `لحد ${fmtD(m.due_at)}` : ''}</span></div>
                     )) : <p className="muted">كل الواجبات اتسلمت.</p>}
-                  </section>
-                  <section className="card">
+                  </motion.section>
+                  <motion.section variants={item} className="card">
                     <h2>آخر النتايج</h2>
                     {rep.recent_results.length ? rep.recent_results.map((r, i) => (
                       <div className="row" key={i}>
@@ -93,19 +93,19 @@ export default function Parent() {
                         <span className={`pill ${r.graded ? 'green' : ''}`}>{r.score == null ? 'بانتظار التصحيح' : `${num(r.score)}٪${r.graded ? '' : ' (مبدئي)'}`}</span>
                       </div>
                     )) : <p className="muted">لسه مفيش نتايج.</p>}
-                  </section>
-                  <section className="card">
+                  </motion.section>
+                  <motion.section variants={item} className="card">
                     <h2>الاشتراك</h2>
                     {rep.subscription ? (
                       <div className="row"><div className="grow"><div className="strong">{rep.subscription.plan}</div>{rep.subscription.renews_on && <div className="muted small">يتجدد في {fmtD(rep.subscription.renews_on)}</div>}</div><span className={`pill ${rep.subscription.status === 'active' ? 'green' : ''}`}>{STATUS[rep.subscription.status]}</span></div>
                     ) : <p className="muted">مفيش اشتراك متسجل.</p>}
-                  </section>
-                  <section className="card">
+                  </motion.section>
+                  <motion.section variants={item} className="card">
                     <h2>الخصوصية</h2>
                     <p className="muted">اسم {kid?.full_name.split(' ')[0]} بيظهر (الاسم الأول بس) في ترتيب الألعاب مع باقي الطلبة. تقدر تخفيه.</p>
                     <button className="btn-outline" onClick={() => toggleHidden(kid)}>{kid?.hidden ? 'إظهاره في الترتيب' : 'إخفاؤه من الترتيب'}</button>
-                  </section>
-                </div>
+                  </motion.section>
+                </motion.div>
               </>
             )}
           </>

@@ -3,6 +3,8 @@ import { supabase } from './supabase.js'
 import Logo from './Logo.jsx'
 import Solve from './Solve.jsx'
 import Game from './Game.jsx'
+import { motion } from 'framer-motion'
+import { container, item, rowItem, CountUp, GoIcon, Progress } from './ui.jsx'
 
 const fmt = (n) => Number(n ?? 0).toLocaleString('ar-EG')
 const dayName = new Intl.DateTimeFormat('ar-EG', { weekday: 'long' })
@@ -124,21 +126,22 @@ export default function Student({ session }) {
       </aside>
 
       <main>
-        <header className="top">
+        <motion.header className="top" variants={item} initial="hidden" animate="visible">
           <div>
+            <span className="eyebrow">لوحتك</span>
             <h1>أهلاً يا {myFirst}</h1>
             <p>{assignments.length ? `عندك ${fmt(assignments.length)} مطلوب تسليمه` : 'مفيش حاجة متأخرة عليك'}</p>
           </div>
           <div className="top-end">
             <div className="points">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="#E8A317" aria-hidden="true"><path d="M12 2l2.9 6.3 6.9.8-5.1 4.7 1.4 6.8L12 17.3 5.9 20.6l1.4-6.8L2.2 9.1l6.9-.8z" /></svg>
-              {fmt(points)} نقطة
+              <CountUp value={points} /> نقطة
             </div>
             <div className="avatar" aria-label={`حساب ${myFirst}`}>{myFirst.slice(0, 1)}</div>
           </div>
-        </header>
+        </motion.header>
 
-        <section className="hero" aria-label="الحصة القادمة">
+        <motion.section className="hero" aria-label="الحصة القادمة" variants={item} initial="hidden" animate="visible">
           {next ? (
             <>
               <div>
@@ -147,7 +150,7 @@ export default function Student({ session }) {
                 <div className="hero-sub">{next.groups?.name}</div>
               </div>
               {next.live_url ? (
-                <a className="btn-gold" href={next.live_url} target="_blank" rel="noreferrer">ادخل الحصة</a>
+                <a className="btn-gold" href={next.live_url} target="_blank" rel="noreferrer">ادخل الحصة<GoIcon /></a>
               ) : (
                 <span className="chip soft">رابط الحصة بيظهر قبلها بشوية</span>
               )}
@@ -158,10 +161,10 @@ export default function Student({ session }) {
               <div className="hero-sub">أول ما المدرس يضيف حصة هتظهر هنا</div>
             </div>
           )}
-        </section>
+        </motion.section>
 
-        <div className="grid">
-          <section className="card" aria-label="التحدي">
+        <motion.div className="grid" variants={container} initial="hidden" animate="visible">
+          <motion.section variants={item} className="card" aria-label="التحدي">
             <div className="card-head">
               <h2>تحدي النهاردة</h2>
               <span className="pill green">مفتوح دايمًا</span>
@@ -173,41 +176,41 @@ export default function Student({ session }) {
                   <div className="grow">
                     <div className="strong">{game.name}</div>
                     <div className="muted">{game.description}</div>
-                    <div className="bar"><div style={{ width: `${Math.min(100, (playedToday / MAX_TRIES) * 100)}%` }} /></div>
+                    <Progress pct={(playedToday / MAX_TRIES) * 100} />
                     <div className="muted small">{fmt(playedToday)} من {fmt(MAX_TRIES)} محاولات النهاردة</div>
                   </div>
                 </div>
-                <button className="btn-primary" disabled={playedToday >= MAX_TRIES} onClick={() => setView({ type: 'game' })}>{playedToday >= MAX_TRIES ? 'خلصت محاولات النهاردة' : 'العب دلوقتي'}</button>
+                <button className="btn-primary" disabled={playedToday >= MAX_TRIES} onClick={() => setView({ type: 'game' })}>{playedToday >= MAX_TRIES ? 'خلصت محاولات النهاردة' : <>العب دلوقتي<GoIcon /></>}</button>
               </>
             ) : (
               <p className="muted">مفيش تحديات متاحة حاليًا.</p>
             )}
-          </section>
+          </motion.section>
 
-          <section className="card" aria-label="لوحة الصدارة">
+          <motion.section variants={item} className="card" aria-label="لوحة الصدارة">
             <div className="card-head">
               <h2>ترتيب {game ? 'اللعبة' : 'الألعاب'}</h2>
             </div>
             {board.length ? (
-              <ol className="board">
+              <motion.ol className="board" variants={container} initial="hidden" animate="visible">
                 {board.slice(0, 5).map((r, i) => {
                   const me = r.first_name === myFirst
                   return (
-                    <li key={i} className={me ? 'me' : i === 0 ? 'first' : ''}>
+                    <motion.li variants={rowItem} key={i} className={me ? 'me' : i === 0 ? 'first' : ''}>
                       <span className="rank">{fmt(i + 1)}</span>
                       <span className="grow">{r.first_name}{me ? ' (إنتي)' : ''}</span>
                       <b>{fmt(r.score)}</b>
-                    </li>
+                    </motion.li>
                   )
                 })}
-              </ol>
+              </motion.ol>
             ) : (
               <p className="muted">لسه محدش لعب. كون إنت الأول!</p>
             )}
             {myRank > 4 && <p className="muted small">ترتيبك: {fmt(myRank + 1)}</p>}
-          </section>
+          </motion.section>
 
-          <section className="card" aria-label="الواجبات">
+          <motion.section variants={item} className="card" aria-label="الواجبات">
             <h2>الواجبات المطلوبة</h2>
             {assignments.length ? (
               assignments.map((a) => (
@@ -222,9 +225,9 @@ export default function Student({ session }) {
             ) : (
               <p className="muted">خلصت كل الواجبات. برافو!</p>
             )}
-          </section>
+          </motion.section>
 
-          <section className="card" aria-label="النتايج">
+          <motion.section variants={item} className="card" aria-label="النتايج">
             <h2>آخر النتايج</h2>
             {results.length ? (
               results.map((r) => (
@@ -238,9 +241,9 @@ export default function Student({ session }) {
             ) : (
               <p className="muted">لسه ماسلمتش حاجة.</p>
             )}
-          </section>
+          </motion.section>
 
-          <section className="card" aria-label="الاشتراك">
+          <motion.section variants={item} className="card" aria-label="الاشتراك">
             <h2>اشتراكي</h2>
             {sub ? (
               <div className="row">
@@ -253,8 +256,8 @@ export default function Student({ session }) {
             ) : (
               <p className="muted">مفيش اشتراك متسجل لحد دلوقتي. الإدارة هتفعّله بعد الدفع.</p>
             )}
-          </section>
-        </div>
+          </motion.section>
+        </motion.div>
       </main>
     </div>
   )

@@ -2,6 +2,8 @@ import { useCallback, useEffect, useState } from 'react'
 import { supabase } from './supabase.js'
 import Logo from './Logo.jsx'
 import Student from './Student.jsx'
+import { AnimatePresence, motion } from 'framer-motion'
+import { Tabs, EASE } from './ui.jsx'
 
 const ROLE_AR = { manager: 'مدير', teacher: 'مدرس', assistant: 'مساعد', student: 'طالب', parent: 'ولي أمر' }
 const fmtDT = (iso) => new Intl.DateTimeFormat('ar-EG', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(iso))
@@ -806,19 +808,25 @@ export default function Admin({ session, role }) {
           <button className="btn-link" onClick={() => supabase.auth.signOut()}>تسجيل الخروج</button>
         </div>
       </header>
-      <nav className="tabs" aria-label="أقسام الإدارة">
-        {TABS.map(([k, l]) => (
-          <button key={k} className={tab === k ? 'tab active' : 'tab'} onClick={() => setTab(k)}>{l}</button>
-        ))}
-      </nav>
+      <Tabs items={TABS} value={tab} onChange={setTab} label="أقسام الإدارة" id="admin-tab" />
       <main className="admin-main">
-        {tab === 'people' && <People role={role} />}
-        {tab === 'import' && <ImportStudents />}
-        {tab === 'groups' && <Groups role={role} />}
-        {tab === 'sessions' && <Sessions />}
-        {tab === 'attendance' && <Attendance />}
-        {tab === 'assign' && <Assignments />}
-        {tab === 'subs' && <Subscriptions role={role} />}
+        <AnimatePresence mode="wait" initial={false}>
+          <motion.div
+            key={tab}
+            className="pane"
+            initial={{ opacity: 0, y: 18 }}
+            animate={{ opacity: 1, y: 0, transition: { duration: 0.55, ease: EASE } }}
+            exit={{ opacity: 0, y: -8, transition: { duration: 0.18, ease: EASE } }}
+          >
+            {tab === 'people' && <People role={role} />}
+            {tab === 'import' && <ImportStudents />}
+            {tab === 'groups' && <Groups role={role} />}
+            {tab === 'sessions' && <Sessions />}
+            {tab === 'attendance' && <Attendance />}
+            {tab === 'assign' && <Assignments />}
+            {tab === 'subs' && <Subscriptions role={role} />}
+          </motion.div>
+        </AnimatePresence>
       </main>
     </div>
   )

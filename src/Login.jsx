@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { supabase } from './supabase.js'
 import Logo from './Logo.jsx'
+import { motion } from 'framer-motion'
+import { EASE, GoIcon } from './ui.jsx'
 
 export default function Login() {
   const [mode, setMode] = useState('login')
@@ -25,7 +27,7 @@ export default function Login() {
 
   return (
     <div className="login-wrap">
-      <form className="login-card" onSubmit={submit}>
+      <motion.form className="login-card" onSubmit={submit} initial={{ opacity: 0, y: 28, scale: 0.97 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ duration: 0.8, ease: EASE }}>
         <Logo size={56} />
         <h1>{mode === 'login' ? 'أهلاً بيك' : 'إنشاء حساب'}</h1>
         {mode === 'signup' && (
@@ -45,12 +47,12 @@ export default function Login() {
         {mode === 'signup' && <p className="muted small">ولي أمر؟ سجّل بنفس الطريقة، وإدارة السنتر هتربط حسابك بحساب ابنك.</p>}
         {msg && <p className="msg" role="alert">{msg}</p>}
         <button className="btn-primary" disabled={busy}>
-          {busy ? 'لحظة...' : mode === 'login' ? 'دخول' : 'إنشاء الحساب'}
+          {busy ? 'لحظة...' : <>{mode === 'login' ? 'دخول' : 'إنشاء الحساب'}<GoIcon /></>}
         </button>
         <button type="button" className="btn-link" onClick={() => { setMode(mode === 'login' ? 'signup' : 'login'); setMsg('') }}>
           {mode === 'login' ? 'معندكش حساب؟ سجّل' : 'عندك حساب؟ ادخل'}
         </button>
-      </form>
+      </motion.form>
     </div>
   )
 }
